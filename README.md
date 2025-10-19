@@ -22,5 +22,30 @@ Causion is under active development. The focus is stability of the four core beh
 ## Contributing
 Pull requests are welcome. Please preserve the core behaviors and include tests for UI changes where feasible.
 
+## Run it locally (quick-start)
+Follow these beginner-friendly steps to try the app on your computer:
+
+1. **Install Node.js** (version 20 or newer). The easiest path is to download the installer from [nodejs.org](https://nodejs.org/) and run it with the default options.
+2. **Download the project**.
+   - If you use GitHub, click the green **Code** button and choose **Download ZIP**.
+   - After the download finishes, unzip the folder to a place you can find (for example, your Desktop).
+3. **Open a terminal** (macOS: Spotlight → “Terminal”; Windows: Start menu → “Command Prompt” or “PowerShell”).
+4. **Go to the project folder** you unzipped. Example command (replace the path with your own):
+   ```bash
+   cd path/to/causion-app
+   ```
+5. **Install the app’s packages**. This step downloads everything the app needs:
+   ```bash
+   npm install
+   ```
+   > The first run may take a few minutes while files download.
+6. **Start the app**:
+   ```bash
+   npm run dev
+   ```
+   - The terminal will show a local web address such as `http://localhost:5173/`.
+7. **Open the app in your browser** by typing that address into Chrome, Edge, or Firefox. You should now see the DAG simulation and can experiment with the sliders and nodes.
+8. **Stop the app** when you are done by returning to the terminal window and pressing `Ctrl + C` (or `Cmd + C` on macOS).
+
 ## License
 TBD.
