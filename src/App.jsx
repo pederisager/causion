@@ -13,6 +13,9 @@ import ReactFlow, {
   useReactFlow,
 } from "reactflow";
 import "reactflow/dist/style.css";
+import { parseSCM } from "./graph/parser.js";
+import { depsFromModel, topoSort } from "./graph/topology.js";
+import { computeValues, shallowEqualObj } from "./graph/math.js";
 import { scheduleNodeDisplayUpdate, scheduleEdgePulse } from "./utils/lagScheduler";
 import { buildGraphSignature } from "./utils/graphSignature";
 import { applyNodeData } from "./utils/nodeUtils";
@@ -39,68 +42,6 @@ const defaultFeatures = {
   flowPulseMs: 900,          // pulse duration per hop (ms)
 };
 
-// ===================== PARSER =====================
-function parseSCM(text) {
-  const lines = text
-    .split(/[;\n]/)
-    .map((l) => l.trim())
-    .filter(Boolean);
-
-  const model = new Map();
-  const allVars = new Set();
-
-  for (const line of lines) {
-    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/);
-    if (!m) throw new Error('Cannot parse: "' + line + '"');
-    const child = m[1];
-    const rhs = m[2];
-
-    const norm = rhs.replace(/-/g, "+ -");
-    const terms = norm.split("+").map((t) => t.trim()).filter(Boolean);
-
-    const parents = {};
-    let constant = 0;
-
-    for (const term of terms) {
-      if (/^error$/i.test(term)) continue;
-      if (/^[+-]?\d*\.?\d+(e[+-]?\d+)?$/i.test(term)) { constant += parseFloat(term); continue; }
-      const star = term.indexOf("*");
-      let coeff = 1; let v = term;
-      if (star !== -1) { coeff = parseFloat(term.slice(0, star)); v = term.slice(star + 1).trim(); }
-      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(v)) throw new Error('Unsupported term: "' + term + '" in line "' + line + '"');
-      parents[v] = (parents[v] ?? 0) + (isNaN(coeff) ? 1 : coeff);
-    }
-
-    if (model.has(child)) throw new Error("Duplicate definition for " + child);
-    model.set(child, { parents, constant });
-    allVars.add(child); Object.keys(parents).forEach((p) => allVars.add(p));
-  }
-
-  for (const v of allVars) if (!model.has(v)) model.set(v, { parents: {}, constant: 0 });
-  return { model, allVars };
-}
-
-function depsFromModel(model) {
-  const eqs = new Map();
-  for (const [child, spec] of model) eqs.set(child, new Set(Object.keys(spec.parents)));
-  return eqs;
-}
-
-// ===================== TOPO + LAYOUT =====================
-function topoSort(eqs) {
-  const nodeIds = [...eqs.keys()];
-  const indeg = new Map(nodeIds.map((n) => [n, 0]));
-  for (const [child, parents] of eqs) for (const p of parents) indeg.set(child, (indeg.get(child) || 0) + 1);
-  const q = nodeIds.filter((n) => (indeg.get(n) || 0) === 0);
-  const order = [];
-  while (q.length) {
-    const n = q.shift(); order.push(n);
-    for (const [child, parents] of eqs) if (parents.has(n)) { indeg.set(child, indeg.get(child) - 1); if (indeg.get(child) === 0) q.push(child); }
-  }
-  if (order.length !== nodeIds.length) throw new Error("SCM contains a cycle (not a DAG).");
-  return order;
-}
-
 const NODE_W = 120; const NODE_H = 120; const RANK_SEP = 160; const NODE_SEP = 40;
 function layoutLeftRight(eqs) {
   const order = topoSort(eqs); const rank = {};
@@ -114,20 +55,6 @@ function layoutLeftRight(eqs) {
 
 function pickHandleFromDelta(dx, dy) { const adx = Math.abs(dx), ady = Math.abs(dy); if (adx >= ady) return dx >= 0 ? 'R' : 'L'; return dy >= 0 ? 'B' : 'T'; }
 function nodeCenter(node) { return { x: node.position.x + NODE_W / 2, y: node.position.y + NODE_H / 2 }; }
-
-// ===================== PROPAGATION (math) =====================
-function computeValues(model, eqs, currentValues, clampMap) {
-  const order = topoSort(eqs);
-  const next = { ...currentValues };
-  for (const n of order) {
-    if (clampMap[n]) continue;
-    const spec = model.get(n) || { parents: {}, constant: 0 };
-    let sum = 0; for (const [p, c] of Object.entries(spec.parents)) sum += c * (next[p] ?? 0);
-    next[n] = spec.constant + sum;
-  }
-  return next;
-}
-function shallowEqualObj(a, b) { const ka = Object.keys(a); const kb = Object.keys(b); if (ka.length !== kb.length) return false; for (const k of ka) if (a[k] !== b[k]) return false; return true; }
 
 function valueToColor(v, range = 100) {
   const x = Math.max(-range, Math.min(range, Number(v) || 0));
