@@ -10,8 +10,11 @@ import ReactFlow, {
   Position,
   MarkerType,
   getStraightPath,
+  useReactFlow,
 } from "reactflow";
 import "reactflow/dist/style.css";
+import { scheduleNodeDisplayUpdate, scheduleEdgePulse } from "./utils/lagScheduler";
+import { buildGraphSignature } from "./utils/graphSignature";
 
 /**
  * DAG Visual Simulation App — Causal Flow (Marching Ants, Restored Features)
@@ -231,6 +234,7 @@ function App() {
 }
 
 function CoreApp() {
+  const reactFlow = useReactFlow();
   const [features, setFeatures] = useState(defaultFeatures);
   const [scmText, setScmText] = useState(PRESET_1);
   const [error, setError] = useState("");
@@ -250,6 +254,8 @@ function CoreApp() {
   // pulses + bookkeeping
   const [edgeHot, setEdgeHot] = useState({});
   const pendingTimersRef = useRef([]);
+  const nodeUpdateTimersRef = useRef(new Map());
+  const edgeTimersRef = useRef(new Map());
   const directChangedRef = useRef({}); // marks direct sources to seed propagation
   const prevDraggingRef = useRef({}); // track previous dragging to detect drop events
 
@@ -271,6 +277,7 @@ function CoreApp() {
     }
   }, [scmText]);
   const { model, eqs, allVars } = parsed;
+  const graphSignature = useMemo(() => buildGraphSignature(eqs), [eqs]);
 
   // Ensure state maps cover all vars
   useEffect(() => {
@@ -424,18 +431,35 @@ function CoreApp() {
         queue.push([v, nd]);
         const delay = nd * lag;
 
-        const tn = setTimeout(() => { setDisplayValues((prev) => ({ ...prev, [v]: values[v] })); }, delay);
-        pendingTimersRef.current.push(tn);
+        scheduleNodeDisplayUpdate(
+          nodeUpdateTimersRef.current,
+          pendingTimersRef.current,
+          v,
+          delay,
+          () => setDisplayValues((prev) => ({ ...prev, [v]: values[v] }))
+        );
 
         const edgeId = u + '->' + v;
-        const teOn = setTimeout(() => { setEdgeHot((prev) => ({ ...prev, [edgeId]: true })); }, delay);
-        const teOff = setTimeout(() => { setEdgeHot((prev) => ({ ...prev, [edgeId]: false })); }, delay + pulseMs);
-        pendingTimersRef.current.push(teOn, teOff);
+        scheduleEdgePulse(
+          edgeTimersRef.current,
+          pendingTimersRef.current,
+          edgeId,
+          delay,
+          pulseMs,
+          setEdgeHot
+        );
       }
     }
   }, [values, allVars, parentToChildren, features.causalFlow, features.causalLagMs, features.flowPulseMs, displayValues, interventions, autoPlay, dragging, features.ephemeralClamp]);
 
-  // Sync display values when a slider drag ends (fix: ensure node resets with slider) 
+  // Keep the viewport steady while still fitting freshly parsed graphs once
+  useEffect(() => {
+    if (!reactFlow) return;
+    if (!nodes.length) return;
+    reactFlow.fitView({ padding: 0.12, duration: 350 });
+  }, [reactFlow, nodes.length, graphSignature, features.layoutFreeform]);
+
+  // Sync display values when a slider drag ends (fix: ensure node resets with slider)
   useEffect(() => {
     const prev = prevDraggingRef.current || {};
     const updates = {};
@@ -450,7 +474,16 @@ function CoreApp() {
   }, [dragging, allVars, values]);
 
   // Cleanup timers on unmount
-  useEffect(() => () => { pendingTimersRef.current.forEach(clearTimeout); }, []);
+  useEffect(() => () => {
+    pendingTimersRef.current.forEach(clearTimeout);
+    nodeUpdateTimersRef.current.forEach((timer) => clearTimeout(timer));
+    nodeUpdateTimersRef.current.clear();
+    edgeTimersRef.current.forEach((pair) => {
+      clearTimeout(pair.on);
+      clearTimeout(pair.off);
+    });
+    edgeTimersRef.current.clear();
+  }, []);
 
   return (
     <div className="w-full h-full grid grid-cols-12 gap-4 p-4" style={{ fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system" }}>
@@ -574,7 +607,7 @@ function CoreApp() {
       <div className="col-span-8">
         <style>{`@keyframes antsForward { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -24; } }`}</style>
         <div className="rounded-2xl shadow border h-[80vh] overflow-hidden">
-          <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} fitView>
+          <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}>
             <Background />
             <MiniMap pannable zoomable />
             <Controls />
