@@ -1,6 +1,6 @@
 /**
- * Schedule a visual update for a node. Multiple calls for the same node keep
- * their own timers so that downstream values can “stream” as parents change.
+ * Timer utilities used by propagation hooks to orchestrate delayed updates and
+ * marching-ants pulses.
  */
 export function scheduleNodeDisplayUpdate(nodeTimerMap, pendingTimers, nodeId, delay, updateFn) {
   const timersForNode = nodeTimerMap.get(nodeId) ?? new Set();
@@ -21,10 +21,6 @@ export function scheduleNodeDisplayUpdate(nodeTimerMap, pendingTimers, nodeId, d
   return timer;
 }
 
-/**
- * Schedule a marching-ants pulse for an edge. We retain overlapping pulses by
- * reference-counting the "hot" state so rapid parent changes stay animated.
- */
 export function scheduleEdgePulse(edgeTimerMap, pendingTimers, edgeId, delay, pulseMs, setEdgeHot) {
   const entry = edgeTimerMap.get(edgeId) ?? { timers: new Set(), activeCount: 0 };
   if (!edgeTimerMap.has(edgeId)) {
@@ -66,4 +62,22 @@ export function scheduleEdgePulse(edgeTimerMap, pendingTimers, edgeId, delay, pu
   entry.timers.add(pair);
   pendingTimers.push(pair.on, pair.off);
   return pair;
+}
+
+export function clearPendingTimers(pendingTimers, nodeTimerMap, edgeTimerMap) {
+  pendingTimers.forEach((timer) => clearTimeout(timer));
+  pendingTimers.length = 0;
+
+  nodeTimerMap.forEach((timerSet) => {
+    timerSet.forEach((timer) => clearTimeout(timer));
+  });
+  nodeTimerMap.clear();
+
+  edgeTimerMap.forEach((entry) => {
+    entry.timers.forEach((pair) => {
+      clearTimeout(pair.on);
+      clearTimeout(pair.off);
+    });
+  });
+  edgeTimerMap.clear();
 }

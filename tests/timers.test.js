@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
-import { scheduleNodeDisplayUpdate, scheduleEdgePulse } from '../src/utils/lagScheduler.js';
+import { scheduleNodeDisplayUpdate, scheduleEdgePulse } from '../src/utils/timers.js';
 
 test('scheduleNodeDisplayUpdate keeps multiple timers so every update runs', async (t) => {
   const nodeTimers = new Map();
