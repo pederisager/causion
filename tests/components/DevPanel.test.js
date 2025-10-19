@@ -1,23 +1,21 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
 import React from "react";
-import { render, screen, getMarkup, cleanup } from "../shims/@testing-library/react/index.js";
+import { describe, it, expect } from "vitest";
+import { render, screen } from "@testing-library/react";
 import DevPanel from "../../src/components/panels/DevPanel.js";
 
-test("DevPanel renders boolean and numeric feature controls", () => {
-  const features = { flag: true, limit: 42 };
-  const setFeatures = () => {};
+describe("DevPanel", () => {
+  it("renders boolean and numeric feature controls", () => {
+    const features = { flag: true, limit: 42 };
+    const setFeatures = () => {};
 
-  render(React.createElement(DevPanel, { features, setFeatures }));
+    render(React.createElement(DevPanel, { features, setFeatures }));
 
-  assert.doesNotThrow(() => screen.getByText("Dev Panel (feature flags)"));
-  assert.doesNotThrow(() => screen.getByText("flag"));
-  assert.doesNotThrow(() => screen.getByText("limit"));
-  assert.doesNotThrow(() => screen.getByDisplayValue(42));
+    expect(screen.getByText("Dev Panel (feature flags)")).toBeInTheDocument();
+    expect(screen.getByText("flag")).toBeInTheDocument();
+    expect(screen.getByText("limit")).toBeInTheDocument();
+    expect(screen.getByDisplayValue(42)).toBeInTheDocument();
 
-  const markup = getMarkup();
-  assert.ok(markup.includes("type=\"checkbox\""));
-  assert.ok(markup.includes("type=\"number\""));
-
-  cleanup();
+    expect(screen.getByLabelText("flag").getAttribute("type")).toBe("checkbox");
+    expect(screen.getByDisplayValue(42).getAttribute("type")).toBe("number");
+  });
 });

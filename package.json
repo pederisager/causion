@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --test",
+    "test": "vitest",
+    "test:ci": "vitest run --reporter=basic && node --test tests/data/presets.test.js tests/graph/math.test.js tests/graph/parser.test.js tests/graph/topology.test.js tests/hooks/usePropagationEffects.test.js tests/hooks/useNodeGraph.test.js tests/hooks/useScmModel.test.js tests/edgeUtils.test.js tests/graphSignature.test.js tests/nodeUtils.test.js tests/timers.test.js",
+    "test:watch": "vitest watch",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -23,15 +25,21 @@
     "@eslint/js": "^9.36.0",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.2.0",
+    "@testing-library/user-event": "^14.5.2",
     "@vitejs/plugin-react": "^5.0.4",
+    "@vitest/ui": "^1.6.0",
     "autoprefixer": "^10.4.21",
     "babel-plugin-react-compiler": "^19.1.0-rc.3",
     "eslint": "^9.36.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.22",
     "globals": "^16.4.0",
+    "jsdom": "^26.1.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.13",
-    "vite": "^7.1.7"
+    "vite": "^7.1.7",
+    "vitest": "^1.6.0"
   }
 }

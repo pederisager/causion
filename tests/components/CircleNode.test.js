@@ -1,25 +1,20 @@
-import { test } from "node:test";
-import assert from "node:assert/strict";
 import React from "react";
-import { ReactFlowProvider } from "reactflow";
-import { render, screen, getMarkup, cleanup } from "../shims/@testing-library/react/index.js";
+import { describe, it, expect } from "vitest";
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../setup/test-env.js";
 import CircleNode from "../../src/components/nodes/CircleNode.js";
 
-test("CircleNode renders id label and formatted value", () => {
-  const data = { id: "A", value: 12.345, min: -50, max: 50 };
-  render(
-    React.createElement(
-      ReactFlowProvider,
-      null,
+describe("CircleNode", () => {
+  it("renders id label and formatted value", () => {
+    const data = { id: "A", value: 12.345, min: -50, max: 50 };
+    renderWithProviders(
       React.createElement(CircleNode, { data })
-    )
-  );
+    );
 
-  assert.doesNotThrow(() => screen.getByText("A"));
-  assert.doesNotThrow(() => screen.getByText("12.35"));
+    expect(screen.getByText("A")).toBeInTheDocument();
+    expect(screen.getByText("12.35")).toBeInTheDocument();
 
-  const markup = getMarkup();
-  assert.ok(markup.includes("border-radius:50%"));
-
-  cleanup();
+    const circle = screen.getByText("A").parentElement;
+    expect(circle).toHaveStyle({ borderRadius: "50%" });
+  });
 });
