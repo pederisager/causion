@@ -10,9 +10,8 @@ import "reactflow/dist/style.css";
 import CircleNode from "./components/nodes/CircleNode.jsx";
 import CausalEdge from "./components/edges/CausalEdge.jsx";
 import DevPanel from "./components/panels/DevPanel.jsx";
-import {
-  DEFAULT_FEATURE_FLAGS,
-} from "./components/constants.js";
+import { DEFAULT_FEATURE_FLAGS } from "./components/constants.js";
+import { PRESETS } from "./data/presets.js";
 import { useScmModel } from "./hooks/useScmModel.js";
 import { useNodeGraph } from "./hooks/useNodeGraph.js";
 import { usePropagationEffects } from "./hooks/usePropagationEffects.js";
@@ -21,10 +20,6 @@ const defaultFeatures = { ...DEFAULT_FEATURE_FLAGS };
 
 const nodeTypes = { circle: CircleNode };
 const edgeTypes = { causal: CausalEdge };
-
-const PRESET_1 = `Med = 0.5*A\nB = 0.5*Med`;
-const PRESET_2 = `A = 0.5*Con\nB = 0.5*Con`;
-const PRESET_3 = `Col = 0.5*A + 0.5*B`;
 
 function App() {
   return (
@@ -38,7 +33,8 @@ function CoreApp() {
   const reactFlow = useReactFlow();
   const [features, setFeatures] = useState(defaultFeatures);
 
-  const { scmText, setScmText, error, model, eqs, allVars, graphSignature } = useScmModel(PRESET_1);
+  const defaultPreset = PRESETS[0]?.text ?? "";
+  const { scmText, setScmText, error, model, eqs, allVars, graphSignature } = useScmModel(defaultPreset);
 
   const propagation = usePropagationEffects({
     model,
@@ -79,15 +75,15 @@ function CoreApp() {
         <div className="rounded-2xl shadow p-4 border">
           <div className="text-lg font-bold mb-2">SCM</div>
           <div className="flex gap-2 mb-2">
-            <button className="px-3 py-1 rounded-lg border" onClick={() => setScmText(PRESET_1)}>
-              Load Mediation
-            </button>
-            <button className="px-3 py-1 rounded-lg border" onClick={() => setScmText(PRESET_2)}>
-              Load Confounding
-            </button>
-            <button className="px-3 py-1 rounded-lg border" onClick={() => setScmText(PRESET_3)}>
-              Load Collider
-            </button>
+            {PRESETS.map((preset) => (
+              <button
+                key={preset.key}
+                className="px-3 py-1 rounded-lg border"
+                onClick={() => setScmText(preset.text)}
+              >
+                {preset.label}
+              </button>
+            ))}
           </div>
           <textarea
             className="w-full h-48 p-2 rounded-xl border"
