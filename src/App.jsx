@@ -608,11 +608,15 @@ function CoreApp() {
   // Cleanup timers on unmount
   useEffect(() => () => {
     pendingTimersRef.current.forEach(clearTimeout);
-    nodeUpdateTimersRef.current.forEach((timer) => clearTimeout(timer));
+    nodeUpdateTimersRef.current.forEach((timerSet) => {
+      timerSet.forEach((timer) => clearTimeout(timer));
+    });
     nodeUpdateTimersRef.current.clear();
-    edgeTimersRef.current.forEach((pair) => {
-      clearTimeout(pair.on);
-      clearTimeout(pair.off);
+    edgeTimersRef.current.forEach((entry) => {
+      entry.timers.forEach((pair) => {
+        clearTimeout(pair.on);
+        clearTimeout(pair.off);
+      });
     });
     edgeTimersRef.current.clear();
   }, []);
