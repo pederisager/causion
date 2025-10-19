@@ -22,3 +22,20 @@ test("CausalEdge applies marching ants style when hot", () => {
 
   cleanup();
 });
+
+test("CausalEdge omits marching ants when edge is idle", () => {
+  render(
+    React.createElement(CausalEdge, {
+      id: "edge-2",
+      sourceX: 0,
+      sourceY: 0,
+      targetX: 100,
+      targetY: 0,
+      data: { hot: false, pulseMs: 900 },
+    })
+  );
+
+  const markup = getMarkup();
+  assert.ok(!markup.includes("antsForward"));
+  cleanup();
+});

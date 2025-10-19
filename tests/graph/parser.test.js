@@ -30,3 +30,16 @@ test("parseSCM prevents duplicate declarations", () => {
   const duplicate = "A = 1\nA = 2";
   assert.throws(() => parseSCM(duplicate), /Duplicate/);
 });
+
+test("parseSCM hoists parent-only variables and merges repeated parents", () => {
+  const input = "Y = X + 0.5*X + 3; Z = 2*Y";
+  const { model, allVars } = parseSCM(input);
+
+  assert.ok(allVars.has("X"), "parent-only variable should be hoisted");
+  const ySpec = model.get("Y");
+  assert.deepEqual(ySpec.parents, { X: 1.5 });
+  assert.equal(ySpec.constant, 3);
+  const xSpec = model.get("X");
+  assert.deepEqual(xSpec.parents, {});
+  assert.equal(xSpec.constant, 0);
+});

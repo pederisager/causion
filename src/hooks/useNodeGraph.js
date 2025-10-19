@@ -308,3 +308,7 @@ export function useNodeGraph({
     onEdgesChange,
   };
 }
+
+export const __TEST_ONLY__ = {
+  layoutLeftRight,
+};

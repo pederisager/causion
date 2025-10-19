@@ -3,7 +3,13 @@ import assert from "node:assert/strict";
 import { scheduleNodeDisplayUpdate } from "../../src/utils/timers.js";
 import { __TEST_ONLY__ as helpers } from "../../src/hooks/usePropagationEffects.js";
 
-const { clampToRange, tri, computePropagationPlan } = helpers;
+const {
+  clampToRange,
+  tri,
+  computePropagationPlan,
+  buildActiveClampMap,
+  collectPropagationSeeds,
+} = helpers;
 
 test("clampToRange keeps values inside the provided bounds", () => {
   assert.equal(clampToRange(5, { min: 0, max: 10 }), 5);
@@ -31,6 +37,19 @@ test("computePropagationPlan schedules descendants by depth", () => {
     { node: "B", parent: "A", delay: 40 },
     { node: "C", parent: "A", delay: 40 },
     { node: "D", parent: "B", delay: 80 },
+  ]);
+});
+
+test("computePropagationPlan preserves seed ordering for deterministic propagation", () => {
+  const parentToChildren = new Map([
+    ["A", new Set(["C"])],
+    ["B", new Set(["D"])],
+  ]);
+
+  const plan = computePropagationPlan(["B", "A"], parentToChildren, 30);
+  assert.deepEqual(plan, [
+    { node: "D", parent: "B", delay: 30 },
+    { node: "C", parent: "A", delay: 30 },
   ]);
 });
 
@@ -63,4 +82,57 @@ test("computePropagationPlan integrates with timer scheduling", async (t) => {
   assert.deepEqual(fired, ["B", "C"], "deeper descendants fire after additional lag");
 
   t.mock.timers.reset();
+});
+
+test("buildActiveClampMap toggles ephemeral clamp while dragging", () => {
+  const allVars = new Set(["A", "B"]);
+  const interventions = { A: false, B: true };
+  const autoPlay = { A: true, B: false };
+  const dragging = { A: false, B: true };
+
+  const map = buildActiveClampMap(allVars, interventions, autoPlay, dragging, {
+    ephemeralClamp: true,
+  });
+
+  assert.deepEqual(map, { A: true, B: true });
+
+  const disabled = buildActiveClampMap(allVars, interventions, autoPlay, dragging, {
+    ephemeralClamp: false,
+  });
+  assert.deepEqual(disabled, { A: true, B: true }, "auto play and interventions still clamp");
+});
+
+test("collectPropagationSeeds enforces immediate updates for direct changes", () => {
+  const result = collectPropagationSeeds({
+    changedIds: ["A", "B", "C"],
+    directChanged: { A: true },
+    interventions: { B: true },
+    autoPlay: { C: true },
+    dragging: { A: false, B: false, C: false },
+    features: { ephemeralClamp: true },
+  });
+
+  assert.deepEqual(result, ["A", "B", "C"]);
+});
+
+test("collectPropagationSeeds only flags drag events when ephemeral clamp active", () => {
+  const withClamp = collectPropagationSeeds({
+    changedIds: ["D"],
+    directChanged: {},
+    interventions: {},
+    autoPlay: {},
+    dragging: { D: true },
+    features: { ephemeralClamp: true },
+  });
+  assert.deepEqual(withClamp, ["D"], "dragging should seed when ephemeral clamp enabled");
+
+  const withoutClamp = collectPropagationSeeds({
+    changedIds: ["D"],
+    directChanged: {},
+    interventions: {},
+    autoPlay: {},
+    dragging: { D: true },
+    features: { ephemeralClamp: false },
+  });
+  assert.deepEqual(withoutClamp, [], "dragging alone does not seed when feature disabled");
 });

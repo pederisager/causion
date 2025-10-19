@@ -5,6 +5,15 @@ import { tri } from "../data/presets.js";
 
 const DEFAULT_RANGE = { min: -100, max: 100 };
 
+function buildActiveClampMap(allVars, interventions, autoPlay, dragging, features) {
+  const out = {};
+  const useEphemeral = !!(features && features.ephemeralClamp);
+  for (const id of allVars) {
+    out[id] = !!interventions[id] || !!autoPlay[id] || (useEphemeral && !!dragging[id]);
+  }
+  return out;
+}
+
 function clampToRange(value, range) {
   const num = Number(value ?? 0);
   if (!Number.isFinite(num)) return range.min;
@@ -35,6 +44,30 @@ function computePropagationPlan(seeds, parentToChildren, lag) {
   }
 
   return plan;
+}
+
+function collectPropagationSeeds({
+  changedIds,
+  directChanged,
+  interventions,
+  autoPlay,
+  dragging,
+  features,
+}) {
+  if (!Array.isArray(changedIds) || changedIds.length === 0) return [];
+  const out = [];
+  const useEphemeral = !!(features && features.ephemeralClamp);
+  for (const id of changedIds) {
+    if (
+      directChanged[id] ||
+      interventions[id] ||
+      autoPlay[id] ||
+      (useEphemeral && dragging[id])
+    ) {
+      out.push(id);
+    }
+  }
+  return out;
 }
 
 export function usePropagationEffects({ model, eqs, allVars, features }) {
@@ -152,13 +185,10 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
     });
   }, [allVars]);
 
-  const activeClamp = useMemo(() => {
-    const out = {};
-    for (const id of allVars) {
-      out[id] = !!interventions[id] || !!autoPlay[id] || (features.ephemeralClamp && !!dragging[id]);
-    }
-    return out;
-  }, [allVars, interventions, autoPlay, dragging, features.ephemeralClamp]);
+  const activeClamp = useMemo(
+    () => buildActiveClampMap(allVars, interventions, autoPlay, dragging, features),
+    [allVars, interventions, autoPlay, dragging, features]
+  );
 
   useEffect(() => {
     if (eqs.size === 0) return;
@@ -224,13 +254,14 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
       return;
     }
 
-    const seeds = changed.filter(
-      (id) =>
-        directChangedRef.current[id] ||
-        interventions[id] ||
-        autoPlay[id] ||
-        (features.ephemeralClamp && dragging[id])
-    );
+    const seeds = collectPropagationSeeds({
+      changedIds: changed,
+      directChanged: directChangedRef.current,
+      interventions,
+      autoPlay,
+      dragging,
+      features,
+    });
     if (seeds.length === 0) return;
 
     seeds.forEach((s) => {
@@ -444,4 +475,6 @@ export const __TEST_ONLY__ = {
   clampToRange,
   tri,
   computePropagationPlan,
+  buildActiveClampMap,
+  collectPropagationSeeds,
 };
