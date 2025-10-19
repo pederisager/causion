@@ -59,5 +59,14 @@ Follow these beginner-friendly steps to try the app on your computer:
 7. **Open the app in your browser** by typing that address into Chrome, Edge, or Firefox. You should now see the DAG simulation and can experiment with the sliders and nodes.
 8. **Stop the app** when you are done by returning to the terminal window and pressing `Ctrl + C` (or `Cmd + C` on macOS).
 
+## Testing
+Curious how we keep the four core behaviors stable? Read the detailed [Testing Guide](docs/testing.md) for background, folder layout, and invariant expectations. When you are ready to run the suites yourself:
+
+- `npm test` – runs the full Vitest suite once (the same command used in CI).
+- `npm run test:watch` – reruns tests automatically as you edit files.
+- `npm run test:ci` – alternate entry point for automated pipelines when defined.
+
+Invariant-focused checks (such as the slider clamp flow) live alongside our integration specs—for example, see `tests/integration/SliderClamp.test.js`.
+
 ## License
 TBD.
