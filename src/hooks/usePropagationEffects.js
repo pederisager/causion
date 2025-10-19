@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { computeValues, shallowEqualObj } from "../graph/math.js";
 import { scheduleEdgePulse, scheduleNodeDisplayUpdate, clearPendingTimers } from "../utils/timers.js";
+import { tri } from "../data/presets.js";
 
 const DEFAULT_RANGE = { min: -100, max: 100 };
 
@@ -8,11 +9,6 @@ function clampToRange(value, range) {
   const num = Number(value ?? 0);
   if (!Number.isFinite(num)) return range.min;
   return Math.min(range.max, Math.max(range.min, num));
-}
-
-function tri(p) {
-  const t = p - Math.floor(p);
-  return t < 0.5 ? t * 2 : 2 - t * 2;
 }
 
 function computePropagationPlan(seeds, parentToChildren, lag) {

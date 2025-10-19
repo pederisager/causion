@@ -19,6 +19,18 @@
 ## Project status
 Causion is under active development. The focus is stability of the four core behaviors above while we expand testing and quality‑of‑life features.
 
+## Directory structure (quick tour)
+Once the app is installed you will see these key folders:
+
+- `src/` – all source code for the React app.
+  - `src/App.jsx` – entry UI that wires together the panels and canvas.
+  - `src/components/` – reusable UI pieces such as panels, nodes, and edges.
+  - `src/data/presets.js` – shared SCM preset strings and helper math utilities (e.g., the triangular autoplay waveform).
+  - `src/graph/` – parsing and math helpers for structural causal models.
+  - `src/hooks/` – React hooks that manage state, propagation, and graph coordination.
+  - `src/utils/` – browser-friendly utilities (timers, formatting, etc.).
+- `tests/` – Node-based unit tests that exercise parsers, hooks, and presets.
+
 ## Contributing
 Pull requests are welcome. Please preserve the core behaviors and include tests for UI changes where feasible.
 
