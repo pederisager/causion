@@ -4,12 +4,9 @@ import ReactFlow, {
   Controls,
   MiniMap,
   ReactFlowProvider,
-  Handle,
   useNodesState,
   useEdgesState,
-  Position,
   MarkerType,
-  getStraightPath,
   useReactFlow,
 } from "reactflow";
 import "reactflow/dist/style.css";
@@ -20,6 +17,16 @@ import { scheduleNodeDisplayUpdate, scheduleEdgePulse } from "./utils/lagSchedul
 import { buildGraphSignature } from "./utils/graphSignature";
 import { applyNodeData } from "./utils/nodeUtils";
 import { applyEdgeVisualState } from "./utils/edgeUtils";
+import CircleNode from "./components/nodes/CircleNode.jsx";
+import CausalEdge from "./components/edges/CausalEdge.jsx";
+import DevPanel from "./components/panels/DevPanel.jsx";
+import {
+  NODE_WIDTH,
+  NODE_HEIGHT,
+  RANK_SEPARATION,
+  NODE_SEPARATION,
+  DEFAULT_FEATURE_FLAGS,
+} from "./components/constants.js";
 
 /**
  * DAG Visual Simulation App — Causal Flow (Marching Ants, Restored Features)
@@ -32,17 +39,12 @@ import { applyEdgeVisualState } from "./utils/edgeUtils";
  */
 
 // ===================== FEATURE FLAGS =====================
-const defaultFeatures = {
-  ephemeralClamp: true,      // clamp only while slider is dragged
-  edgeStraightening: true,   // use straight edges
-  anchorHandles: true,       // pick T/R/B/L handles based on geometry
-  layoutFreeform: false,     // if true, retain manual positions
-  causalFlow: true,          // enable visual lag + pulses
-  causalLagMs: 250,          // delay per hop (ms)
-  flowPulseMs: 900,          // pulse duration per hop (ms)
-};
+const defaultFeatures = { ...DEFAULT_FEATURE_FLAGS };
 
-const NODE_W = 120; const NODE_H = 120; const RANK_SEP = 160; const NODE_SEP = 40;
+const NODE_W = NODE_WIDTH;
+const NODE_H = NODE_HEIGHT;
+const RANK_SEP = RANK_SEPARATION;
+const NODE_SEP = NODE_SEPARATION;
 function layoutLeftRight(eqs) {
   const order = topoSort(eqs); const rank = {};
   for (const id of order) { const parents = [...(eqs.get(id) || [])]; rank[id] = parents.length ? Math.max.apply(null, parents.map((p) => rank[p] || 0)) + 1 : 0; }
@@ -56,34 +58,6 @@ function layoutLeftRight(eqs) {
 function pickHandleFromDelta(dx, dy) { const adx = Math.abs(dx), ady = Math.abs(dy); if (adx >= ady) return dx >= 0 ? 'R' : 'L'; return dy >= 0 ? 'B' : 'T'; }
 function nodeCenter(node) { return { x: node.position.x + NODE_W / 2, y: node.position.y + NODE_H / 2 }; }
 
-function valueToColor(v, range = 100) {
-  const x = Math.max(-range, Math.min(range, Number(v) || 0));
-  const t = Math.min(Math.abs(x) / range, 1);
-  if (x >= 0) { const r = Math.round(255 * (1 - t)); const g = 255; const b = Math.round(255 * (1 - t)); return `rgb(${r},${g},${b})`; }
-  else { const r = 255; const g = Math.round(255 * (1 - t)); const b = Math.round(255 * (1 - t)); return `rgb(${r},${g},${b})`; }
-}
-
-// ===================== NODE UI =====================
-function CircleNode({ data }) {
-  const { id, value, min = -100, max = 100 } = data;
-  const rangeScale = Math.max(Math.abs(min), Math.abs(max));
-  return (
-    <div style={{ width: NODE_W, height: NODE_H, borderRadius: "50%", background: valueToColor(value, rangeScale), border: "3px solid #111", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", fontWeight: 800, fontSize: 22, boxShadow: "0 10px 24px rgba(0,0,0,0.15)", userSelect: "none" }}>
-      <div>{id}</div>
-      <div style={{ fontSize: 14, fontWeight: 600, opacity: 0.8, marginTop: 6 }}>{Number(value ?? 0).toFixed(2)}</div>
-      {/* targets T/R/B/L */}
-      <Handle id="T_t" type="target" position={Position.Top} style={{ opacity: 0 }} />
-      <Handle id="R_t" type="target" position={Position.Right} style={{ opacity: 0 }} />
-      <Handle id="B_t" type="target" position={Position.Bottom} style={{ opacity: 0 }} />
-      <Handle id="L_t" type="target" position={Position.Left} style={{ opacity: 0 }} />
-      {/* sources T/R/B/L */}
-      <Handle id="T_s" type="source" position={Position.Top} style={{ opacity: 0 }} />
-      <Handle id="R_s" type="source" position={Position.Right} style={{ opacity: 0 }} />
-      <Handle id="B_s" type="source" position={Position.Bottom} style={{ opacity: 0 }} />
-      <Handle id="L_s" type="source" position={Position.Left} style={{ opacity: 0 }} />
-    </div>
-  );
-}
 const nodeTypes = { circle: CircleNode };
 
 // ===================== PRESETS =====================
@@ -93,64 +67,6 @@ const PRESET_3 = `Col = 0.5*A + 0.5*B`;
 
 function tri(p) { const t = p - Math.floor(p); return t < 0.5 ? (t * 2) : (2 - t * 2); }
 
-// ===================== DEV PANEL =====================
-function DevPanel({ features, setFeatures }) {
-  return (
-    <div className="rounded-2xl shadow p-4 border">
-      <div className="text-lg font-bold mb-2">Dev Panel (feature flags)</div>
-      {Object.entries(features).map(([k, v]) => (
-        <label key={k} className="block text-sm mb-2">
-          {typeof v === 'boolean' ? (
-            <>
-              <input type="checkbox" className="mr-2" checked={!!v} onChange={(e) => setFeatures((prev) => ({ ...prev, [k]: e.target.checked }))} />
-              {k}
-            </>
-          ) : (
-            <>
-              <span className="mr-2 inline-block w-36">{k}</span>
-              <input type="number" className="w-28 border rounded px-2 py-1" value={Number(v)} onChange={(e) => setFeatures((prev) => ({ ...prev, [k]: Number(e.target.value) }))} />
-            </>
-          )}
-        </label>
-      ))}
-    </div>
-  );
-}
-
-// ===================== CUSTOM EDGE (marching ants) =====================
-function CausalEdge({ id, sourceX, sourceY, targetX, targetY, data }) {
-  const [edgePath] = getStraightPath({ sourceX, sourceY, targetX, targetY });
-  const hot = !!(data && data.hot);
-  const pulseMs = Math.max(100, Number(data?.pulseMs || 800));
-  const animSec = Math.max(0.3, pulseMs / 800); // tie speed to pulse length
-  return (
-    <g>
-      {/* Base edge for constant legibility */}
-      <path d={edgePath} fill="none" stroke="#111" strokeWidth={hot ? 3 : 2} />
-
-      {/* High-contrast marching ants overlay (parent -> child) */}
-      {hot && (
-        <path
-          d={edgePath}
-          fill="none"
-          stroke="#fff"
-          strokeWidth={hot ? 3.5 : 3}
-          strokeDasharray="8 8"
-          strokeLinecap="butt"
-          style={{ animation: `antsForward ${animSec}s linear infinite` }}
-        />
-      )}
-
-      {/* Arrowhead */}
-      <defs>
-        <marker id={`arrow-${id}`} markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
-          <path d="M0,0 L0,6 L9,3 z" fill="#111" />
-        </marker>
-      </defs>
-      <path d={edgePath} fill="none" stroke="transparent" strokeWidth={2} markerEnd={`url(#arrow-${id})`} />
-    </g>
-  );
-}
 const edgeTypes = { causal: CausalEdge };
 
 // ===================== APP =====================
