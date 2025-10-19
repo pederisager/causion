@@ -15,6 +15,8 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import { scheduleNodeDisplayUpdate, scheduleEdgePulse } from "./utils/lagScheduler";
 import { buildGraphSignature } from "./utils/graphSignature";
+import { applyNodeData } from "./utils/nodeUtils";
+import { applyEdgeVisualState } from "./utils/edgeUtils";
 
 /**
  * DAG Visual Simulation App — Causal Flow (Marching Ants, Restored Features)
@@ -262,6 +264,22 @@ function CoreApp() {
   // React Flow state
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const nodesRef = useRef([]);
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+  const nodePositionSignature = useMemo(
+    () =>
+      nodes
+        .map((node) => `${node.id}:${node.position?.x ?? 0}:${node.position?.y ?? 0}`)
+        .sort()
+        .join("|"),
+    [nodes]
+  );
+  const edgeHotRef = useRef(edgeHot);
+  useEffect(() => {
+    edgeHotRef.current = edgeHot;
+  }, [edgeHot]);
 
   // Parse SCM
   const parsed = useMemo(() => {
@@ -339,41 +357,155 @@ function CoreApp() {
     return () => { if (raf) cancelAnimationFrame(raf); };
   }, [autoPlay, autoPeriod, autoStart, ranges, allVars]);
 
-  // Build nodes from displayValues (visual lag)
+  // Build nodes (structure + positions only)
   useEffect(() => {
-    if (eqs.size === 0) { setNodes([]); return; }
-    const positions = features.layoutFreeform ? null : layoutLeftRight(eqs);
+    if (eqs.size === 0) {
+      setNodes([]);
+      return;
+    }
     const ids = [...allVars];
+    const positions = features.layoutFreeform ? null : layoutLeftRight(eqs);
     setNodes((prev) => {
       const prevMap = new Map(prev.map((n) => [n.id, n]));
-      return ids.map((id) => {
+      let mutated = prev.length !== ids.length;
+      const next = ids.map((id, index) => {
         const prevNode = prevMap.get(id);
-        const pos = prevNode ? prevNode.position : (positions ? positions[id] : { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 });
-        const r = ranges[id] || { min: -100, max: 100 };
-        return { id, type: "circle", position: pos, data: { id, value: (displayValues[id] ?? 0), min: r.min, max: r.max }, draggable: true };
+        const fallbackPos = { x: 120 + index * 160, y: 160 + index * 40 };
+        const desiredPosition =
+          (features.layoutFreeform && prevNode ? prevNode.position : undefined) ||
+          positions?.[id] ||
+          prevNode?.position ||
+          fallbackPos;
+
+        if (prevNode) {
+          let node = prevNode;
+          if (prevNode.type !== "circle" || prevNode.draggable !== true) {
+            node = { ...node, type: "circle", draggable: true };
+            mutated = true;
+          }
+          if (
+            !prevNode.position ||
+            prevNode.position.x !== desiredPosition.x ||
+            prevNode.position.y !== desiredPosition.y
+          ) {
+            node = { ...node, position: desiredPosition };
+            mutated = true;
+          }
+          if (!node.data) {
+            node = { ...node, data: { id, value: 0, min: -100, max: 100 } };
+            mutated = true;
+          }
+          return node;
+        }
+
+        mutated = true;
+        return {
+          id,
+          type: "circle",
+          position: desiredPosition,
+          data: { id, value: 0, min: -100, max: 100 },
+          draggable: true,
+        };
       });
+      return mutated ? next : prev;
     });
-  }, [eqs, allVars, displayValues, ranges, setNodes, features.layoutFreeform]);
+  }, [eqs, allVars, features.layoutFreeform, setNodes]);
+
+  // Sync node data (values + ranges) without rebuilding structure
+  useEffect(() => {
+    setNodes((prev) => applyNodeData(prev, displayValues, ranges));
+  }, [displayValues, ranges, setNodes]);
 
   // Build edges
   function mapHandleId(code, kind /* 's' | 't' */) { switch (code) { case 'T': return `T_${kind}`; case 'R': return `R_${kind}`; case 'B': return `B_${kind}`; case 'L': return `L_${kind}`; default: return undefined; } }
+  const baseEdgeType = features.causalFlow ? "causal" : features.edgeStraightening ? "straight" : undefined;
   useEffect(() => {
-    if (eqs.size === 0) { setEdges([]); return; }
-    const nodeMap = new Map(nodes.map((n) => [n.id, n]));
-    const nextEdges = [];
-    for (const [child, parents] of eqs) {
-      const tgt = nodeMap.get(child); if (!tgt) continue; const tc = nodeCenter(tgt);
-      for (const p of parents) {
-        const src = nodeMap.get(p); if (!src) continue; const sc = nodeCenter(src);
-        const dx = tc.x - sc.x; const dy = tc.y - sc.y;
-        let sourceHandle, targetHandle;
-        if (features.anchorHandles) { const sHandle = pickHandleFromDelta(dx, dy); const tHandle = pickHandleFromDelta(-dx, -dy); sourceHandle = mapHandleId(sHandle, 's'); targetHandle = mapHandleId(tHandle, 't'); }
-        const id = p + "->" + child;
-        nextEdges.push({ id, source: p, target: child, sourceHandle, targetHandle, type: features.causalFlow ? 'causal' : (features.edgeStraightening ? 'straight' : undefined), data: { hot: !!edgeHot[id], pulseMs: features.flowPulseMs }, style: { strokeWidth: 2, stroke: '#111' }, markerEnd: { type: MarkerType.ArrowClosed, width: 30, height: 30, color: '#111' } });
-      }
+    if (eqs.size === 0) {
+      setEdges([]);
+      return;
     }
-    setEdges(nextEdges);
-  }, [eqs, nodes, setEdges, features.edgeStraightening, features.anchorHandles, features.causalFlow, features.flowPulseMs, edgeHot]);
+    const nodeMap = new Map(nodesRef.current.map((n) => [n.id, n]));
+    setEdges((prev) => {
+      const prevMap = new Map(prev.map((e) => [e.id, e]));
+      let mutated = false;
+      const next = [];
+      for (const [child, parents] of eqs) {
+        const targetNode = nodeMap.get(child);
+        if (!targetNode) continue;
+        const targetCenter = nodeCenter(targetNode);
+        for (const parent of parents) {
+          const sourceNode = nodeMap.get(parent);
+          if (!sourceNode) continue;
+          const sourceCenter = nodeCenter(sourceNode);
+          const dx = targetCenter.x - sourceCenter.x;
+          const dy = targetCenter.y - sourceCenter.y;
+          const sourceHandle = features.anchorHandles ? mapHandleId(pickHandleFromDelta(dx, dy), "s") : undefined;
+          const targetHandle = features.anchorHandles ? mapHandleId(pickHandleFromDelta(-dx, -dy), "t") : undefined;
+          const id = `${parent}->${child}`;
+          const desiredMarker = { type: MarkerType.ArrowClosed, width: 30, height: 30, color: "#111" };
+          const desiredStyle = { strokeWidth: 2, stroke: "#111" };
+          const prevEdge = prevMap.get(id);
+          if (prevEdge) {
+            let edge = prevEdge;
+            if (
+              prevEdge.source !== parent ||
+              prevEdge.target !== child ||
+              prevEdge.sourceHandle !== sourceHandle ||
+              prevEdge.targetHandle !== targetHandle ||
+              prevEdge.type !== baseEdgeType ||
+              prevEdge.markerEnd?.type !== desiredMarker.type ||
+              prevEdge.markerEnd?.color !== desiredMarker.color ||
+              prevEdge.markerEnd?.width !== desiredMarker.width ||
+              prevEdge.markerEnd?.height !== desiredMarker.height
+            ) {
+              edge = {
+                ...edge,
+                source: parent,
+                target: child,
+                sourceHandle,
+                targetHandle,
+                type: baseEdgeType,
+                markerEnd: desiredMarker,
+              };
+              mutated = true;
+            }
+            if (!edge.style || edge.style.stroke !== desiredStyle.stroke || edge.style.strokeWidth !== desiredStyle.strokeWidth) {
+              edge = { ...edge, style: desiredStyle };
+              mutated = true;
+            }
+            if (!edge.data) {
+              edge = { ...edge, data: { hot: !!edgeHotRef.current[id], pulseMs: features.flowPulseMs } };
+              mutated = true;
+            }
+            next.push(edge);
+          } else {
+            mutated = true;
+            next.push({
+              id,
+              source: parent,
+              target: child,
+              sourceHandle,
+              targetHandle,
+              type: baseEdgeType,
+              data: { hot: !!edgeHotRef.current[id], pulseMs: features.flowPulseMs },
+              style: desiredStyle,
+              markerEnd: desiredMarker,
+            });
+          }
+        }
+      }
+      if (!mutated && next.length !== prev.length) mutated = true;
+      return mutated ? next : prev;
+    });
+  }, [eqs, features.anchorHandles, baseEdgeType, nodePositionSignature, setEdges, features.flowPulseMs]);
+
+  useEffect(() => {
+    setEdges((prev) => applyEdgeVisualState(prev, edgeHot, {
+      causalFlow: features.causalFlow,
+      flowPulseMs: features.flowPulseMs,
+      edgeStraightening: features.edgeStraightening,
+    }));
+  }, [edgeHot, features.causalFlow, features.flowPulseMs, features.edgeStraightening, setEdges]);
 
   // parent -> children adjacency
   const parentToChildren = useMemo(() => {
