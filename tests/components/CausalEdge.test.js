@@ -1,44 +1,72 @@
 import React from "react";
 import { describe, it, expect } from "vitest";
-import { render } from "@testing-library/react";
 import CausalEdge from "../../src/components/edges/CausalEdge.js";
 
-describe("CausalEdge", () => {
-  const renderEdge = (props) =>
-    render(
-      React.createElement(
-        "svg",
-        { "data-testid": "edge-canvas" },
-        React.createElement(CausalEdge, props)
-      )
-    );
+const defaultEdgeProps = {
+  id: "edge-1",
+  sourceX: 0,
+  sourceY: 0,
+  targetX: 100,
+  targetY: 0,
+};
 
-  it("applies marching ants style when hot", () => {
+const renderEdge = (props) =>
+  renderWithProviders(
+    React.createElement(
+      "svg",
+      { "data-testid": "edge-canvas" },
+      React.createElement(CausalEdge, { ...defaultEdgeProps, ...props })
+    )
+  );
+
+describe("CausalEdge", () => {
+  it("renders marching ants animation with default timing when hot", () => {
     const { container } = renderEdge({
-      id: "edge-1",
-      sourceX: 0,
-      sourceY: 0,
-      targetX: 100,
-      targetY: 0,
-      data: { hot: true, pulseMs: 900 },
+      data: { hot: true },
     });
 
     const animatedPath = container.querySelector('path[stroke-dasharray="8 8"]');
     expect(animatedPath).toBeInTheDocument();
-    expect(animatedPath?.style.animation).toContain("antsForward");
+    expect(animatedPath.style.animation).toContain("antsForward");
+    expect(animatedPath.getAttribute("style")).toMatchInlineSnapshot(
+      '"animation: antsForward 1s linear infinite;"'
+    );
   });
 
-  it("omits marching ants when edge is idle", () => {
-    const { container } = renderEdge({
-      id: "edge-2",
-      sourceX: 0,
-      sourceY: 0,
-      targetX: 100,
-      targetY: 0,
-      data: { hot: false, pulseMs: 900 },
-    });
+  it("keeps the marching ants animation after toggling the hot flag", () => {
+    const view = renderEdge({ data: { hot: true, pulseMs: 600 } });
 
-    const animatedPath = container.querySelector('path[stroke-dasharray="8 8"]');
+    let animatedPath = view.container.querySelector('path[stroke-dasharray="8 8"]');
+    expect(animatedPath).toBeInTheDocument();
+    expect(animatedPath.style.animation).toContain("antsForward");
+
+    view.rerender(
+      React.createElement(
+        "svg",
+        { "data-testid": "edge-canvas" },
+        React.createElement(CausalEdge, {
+          ...defaultEdgeProps,
+          data: { hot: false, pulseMs: 600 },
+        })
+      )
+    );
+
+    animatedPath = view.container.querySelector('path[stroke-dasharray="8 8"]');
     expect(animatedPath).toBeNull();
+
+    view.rerender(
+      React.createElement(
+        "svg",
+        { "data-testid": "edge-canvas" },
+        React.createElement(CausalEdge, {
+          ...defaultEdgeProps,
+          data: { hot: true, pulseMs: 600 },
+        })
+      )
+    );
+
+    animatedPath = view.container.querySelector('path[stroke-dasharray="8 8"]');
+    expect(animatedPath).toBeInTheDocument();
+    expect(animatedPath.style.animation).toContain("antsForward");
   });
 });
