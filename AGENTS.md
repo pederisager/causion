@@ -1,121 +1,127 @@
 # AGENTS.md — DAG Visual Simulation App
 
-> **Purpose**: This file tells coding agents (e.g., OpenAI Codex) exactly how to work in this repository—how to run, test, and propose changes without breaking our core behaviors.
+> **Purpose**: Orient coding agents (e.g., OpenAI Codex) so they can ship small, safe, and well-tested updates to the DAG visual simulation app without endangering critical behaviors.
 
 ---
 
-## Project overview
-An interactive **DAG visual simulation app** (React) used to demonstrate causal flow. The current **last stable version** as of **2025‑10‑12** is named:
-
-**causion_app_v1.0**
-
-### Core behaviors that must never regress
-- **Correct seeded causal lag propagation**
-- **Immediate source updates**
-- **Marching‑ants edge animation**
-- **Ephemeral clamp while dragging + slider drop sync fix** (no “stuck” bug): when a slider is released, the manipulated variable’s value **and color/label reset to zero** unless “Clamp (do)” is explicitly chosen.
-
-If any change risks these, **abort**, open a discussion, and label the PR `needs-human-review`.
+## 1. Quick reference (TL;DR)
+| Topic | Required action |
+| --- | --- |
+| Node & npm | Node ≥ 20, npm ≥ 10 (use npm, not yarn/pnpm). |
+| Install | `npm ci` (preferred) or `npm install`. |
+| Dev server | `npm run dev` (Vite, usually http://localhost:5173). Announce any custom port in the logs. |
+| Build | `npm run build`. |
+| Tests | `npm test` (Vitest). Add/maintain tests for every fix/feature. |
+| Language | **JavaScript only** for new code. Do not introduce TypeScript. |
+| UI stack | React + existing graph utilities; no heavy new deps without approval. |
 
 ---
 
-## System requirements
-- Node.js **>= 20**
-- npm **>= 10** (use npm for consistency unless instructed otherwise)
-- OS: macOS/Linux/Windows
+## 2. Project overview
+Interactive **DAG visual simulation app** (React + Vite) demonstrating causal flow. Last tagged stable snapshot: **causion_app_v1.0** (2025‑10‑12).
 
-> If the repo contains an `.nvmrc` or `engines` in `package.json`, prefer those.
+### Four invariants (must never regress)
+1. **Seeded causal lag propagation remains deterministic.**
+2. **Immediate source updates**: upstream node changes appear instantly.
+3. **Marching‑ants edge animation** stays active and visually consistent.
+4. **Ephemeral clamp on drag**: dragging a slider temporarily clamps; releasing returns value + color/label to baseline unless “Clamp (do)” is selected.
 
----
-
-## Install, run, test
-
-### Install
-```bash
-npm ci || npm install
-```
-
-### Development server
-```bash
-npm run dev
-```
-- The server should start on a local port (commonly 5173/3000). If the port is busy, pick another and **print the chosen URL in logs**.
-
-### Build
-```bash
-npm run build
-```
-
-### Tests
-We aim for lightweight **unit/integration tests**. Use what the repo already has. If **no framework exists**, set up:
-- **Vitest** + **@testing-library/react** for component/integration tests.
-- Optional E2E: **Playwright** (headless) for UI flows involving drag/drop.
-
-Run tests:
-```bash
-npm test
-```
-
-**Required test (must pass before merging):**
-1) **Slider drop reset**: Simulate dragging a variable’s slider to a non‑zero value, then releasing. Expect the variable’s **numeric label and color** to return to baseline (zero) **unless** the “Clamp (do)” control is active. Also confirm marching‑ants animation remains active/unaffected.
-
-If tests don’t exist yet, create them under `tests/` or `src/__tests__/` and wire `npm test` accordingly.
+If a change risks any invariant, stop, surface the concern, and mark the PR `needs-human-review`.
 
 ---
 
-## Repository etiquette for agents
-
-### Branching & tags
-- Protected branches: `main`
-- Stable snapshot tag for rollback: `stable/2025-10-12-causal-flow`
-- Branch names:
-  - Features: `feat/<short-kebab-summary>`
-  - Fixes: `fix/<short-kebab-summary>`
-  - Chore/docs: `chore/<short-kebab-summary>`
-
-### Commits & PRs
-- Commit style: conventional-ish messages (e.g., `fix(slider): reset label and color on drop`).
-- Always open a **PR** to `main`; do **not** push directly.
-- Link to tests in the PR description and summarize **why** the change is safe for the four core behaviors above.
-- Add label(s): `feat` / `bug` / `refactor` / `tests` / `docs` as appropriate.
-
-**PR checklist (agent must tick in description):**
-- [ ] I ran `npm test` locally and all tests pass.
-- [ ] I manually smoke‑tested the dev server for the affected feature.
-- [ ] The change **does not** alter:
-  - [ ] seeded causal lag propagation
-  - [ ] immediate source updates
-  - [ ] marching‑ants animation
-  - [ ] ephemeral clamp + slider drop sync behavior
-- [ ] Added/updated tests cover the change.
-- [ ] No large dependency added without justification.
+## 3. Environment & tooling
+- Confirm local Node/npm meet minimum versions (see quick reference).
+- Use any `.nvmrc` or `engines` hints if present.
+- Prefer existing ESLint/Prettier settings; do not add heavy lint setups without direction.
 
 ---
 
-## Coding standards
-- Prefer **TypeScript** if the file already uses it; otherwise plain JS is fine. Do **not** convert entire files to TS unless the task requests it.
-- Keep functions small; favor pure logic for DAG updates, with clear separation from UI rendering.
-- Preserve existing public props and data contracts between components unless the task explicitly includes a refactor.
-- If ESLint/Prettier are configured, run them. Otherwise, do not introduce heavy lint setups without approval.
+## 4. Working session checklist
+1. **Clarify the request**: ask follow-up questions when instructions seem ambiguous.
+2. **Plan briefly**: list targeted files, risks, and intended tests before coding.
+3. **Implement minimal change**: avoid broad refactors; keep code novice-friendly with helpful inline comments for non-obvious logic.
+4. **Testing**:
+   - Run `npm test`.
+   - Add or update Vitest + React Testing Library specs when behavior changes.
+   - Maintain (or add) a smoke test ensuring the app mounts without errors.
+   - For slider interactions, ensure tests cover drag → release → auto-unclamp, plus “Clamp (do)” persistence.
+5. **Manual verification**:
+   - `npm run dev`
+   - Navigate to the affected UI
+   - Verify sliders, propagation, and marching-ants behaviors remain intact.
+6. **Self-check invariants** and document the confirmation in the PR.
 
 ---
 
-## Files & structure (typical; adjust to repo)
-- `src/` — React source
-  - `graph/` — DAG data structures & propagation logic
-  - `components/` — UI components (sliders, nodes, edges)
-  - `styles/` — CSS/animation (marching‑ants)
-  - `state/` — app state (e.g., store, reducers)
-- `tests/` or `src/__tests__/` — unit/integration tests
+## 5. Git workflow expectations
+- Work from the branch specified in the task (default: current branch). Do not push to `main` directly.
+- Branch naming:
+  - Feature: `feat/<short-kebab-summary>`
+  - Fix: `fix/<short-kebab-summary>`
+  - Chore/Docs: `chore/<short-kebab-summary>`
+- Commit messages: conventional-ish (e.g., `fix(slider): reset label on drop`).
+- Every change requires a PR targeting `main`. Reference relevant tests and clearly state why the invariants remain safe.
+
+### PR template (summarize per section)
+1. **Title**: concise, action-oriented.
+2. **Summary**
+   - What changed
+   - Why it matters
+   - How to use it (if user-visible)
+3. **Changes**: bullet per file explaining the edit.
+4. **Behavior**
+   - Before
+   - After
+5. **Testing**
+   - Automated tests added/updated
+   - Manual verification steps (detail the path in the UI)
+6. **Regression Guard**: explicitly confirm all four invariants above.
+7. **Follow-ups**: TODOs, tech debt, or next steps.
+
+Tick the checklist items in the PR description:
+- [ ] `npm test` passes locally.
+- [ ] Dev server smoke-tested for the affected path.
+- [ ] No change to: seeded propagation / immediate updates / marching-ants / ephemeral clamp.
+- [ ] New or updated tests cover the change.
+- [ ] No large dependency introduced without justification.
+
+---
+
+## 6. Coding guidelines
+- Stick to **React function components + hooks**.
+- Keep code beginner-friendly: clear naming, small functions, inline comments for tricky logic.
+- Use pure functions for DAG math/transformations; isolate rendering from logic when possible.
+- Preserve public APIs and data contracts unless the task explicitly requires refactoring.
+- Do **not** introduce global state managers or routing libraries without approval.
+
+---
+
+## 7. Tests & quality bars
+- Vitest + React Testing Library are the default test stack; reuse utilities under `tests/` or `src/__tests__/`.
+- Required regression test when modifying sliders: simulate drag + release and assert value/color reset (unless clamped).
+- Keep snapshot tests minimal; prefer assertion-based behavior tests.
+- For asynchronous animations (e.g., marching-ants), consider deterministic timers or helper utils if flakes appear—submit those helpers in a focused PR first.
+
+---
+
+## 8. Repository structure (guide only)
+- `src/`
+  - `components/` — UI elements (sliders, nodes, controls)
+  - `graph/` — DAG data & propagation utilities
+  - `state/` — shared state helpers
+  - `styles/` — CSS/animation assets (marching-ants)
+- `tests/` or `src/__tests__/` — Vitest suites
 - `public/` — static assets
-- `package.json` — scripts
+- `docs/` — supplementary documentation
+- `package.json` — scripts & metadata
 
-> If paths differ, **infer from code** and update this document in a separate `docs:` PR.
+Update this document via a dedicated `docs:` PR if the structure materially changes.
 
 ---
 
-## Minimal CI (if none exists)
-If `/.github/workflows/ci.yml` is absent, open a PR adding this workflow:
+## 9. CI guidance
+If `/.github/workflows/ci.yml` is missing, add a minimal workflow:
 ```yaml
 name: CI
 on:
@@ -136,15 +142,15 @@ jobs:
 
 ---
 
-## Security & data
-- This project has **no secret keys** required to run. If an agent adds tooling needing secrets, use GitHub Encrypted Secrets and update this file.
-- Do not exfiltrate code outside the PR.
+## 10. Security & data policy
+- No secrets required to run locally. If you add tooling needing secrets, document it here and rely on GitHub encrypted secrets.
+- Do not exfiltrate code or proprietary data outside approved PRs.
 
 ---
 
-## When to stop and ask for review
-- If a change touches DAG propagation logic or any of the four protected behaviors, open a **draft PR** early and request human feedback.
-- If tests reveal non‑deterministic timing in drag/drop, propose a small test util (e.g., fake timers or deterministic animation frame) **in a separate PR** before main changes.
+## 11. When to escalate
+- Changes that touch DAG propagation internals or threaten the four invariants → open a draft PR and request human review early.
+- If drag/drop timing proves flaky, propose deterministic test utilities in a separate preliminary PR before tackling the main change.
 
 ---
 
