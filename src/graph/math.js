@@ -16,8 +16,12 @@ export function computeValues(model, eqs, currentValues, clampMap = {}) {
   for (const node of order) {
     if (clampMap[node]) continue;
     const spec = model.get(node) || { parents: {}, constant: 0 };
+    const parents = spec.parents || {};
+    if (spec.derived && Object.keys(parents).length === 0) {
+      continue;
+    }
     let sum = 0;
-    for (const [parent, coefficient] of Object.entries(spec.parents)) {
+    for (const [parent, coefficient] of Object.entries(parents)) {
       sum += coefficient * (next[parent] ?? 0);
     }
     next[node] = spec.constant + sum;

@@ -69,14 +69,14 @@ export function parseSCM(text) {
       throw new Error(`Duplicate definition for ${child}`);
     }
 
-    model.set(child, { parents, constant });
+    model.set(child, { parents, constant, derived: false });
     allVars.add(child);
     Object.keys(parents).forEach((parent) => allVars.add(parent));
   }
 
   for (const variable of allVars) {
     if (!model.has(variable)) {
-      model.set(variable, { parents: {}, constant: 0 });
+      model.set(variable, { parents: {}, constant: 0, derived: true });
     }
   }
 

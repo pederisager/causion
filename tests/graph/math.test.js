@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computeValues } from "../../src/graph/math.js";
 import { depsFromModel } from "../../src/graph/topology.js";
+import { parseSCM } from "../../src/graph/parser.js";
 
 const MODEL = new Map([
   ["U", { parents: {}, constant: 2 }],
@@ -38,4 +39,19 @@ test("computeValues returns a new object", () => {
   const result = computeValues(MODEL, EQS, current, clamp);
 
   assert.notStrictEqual(result, current);
+});
+
+test("computeValues preserves inputs for hoisted source nodes", () => {
+  const { model, allVars } = parseSCM("B = A");
+  const eqs = depsFromModel(model);
+  const current = {};
+  for (const id of allVars) {
+    current[id] = 0;
+  }
+  current.A = 37;
+
+  const next = computeValues(model, eqs, current, {});
+
+  assert.equal(next.A, 37);
+  assert.equal(next.B, 37);
 });
