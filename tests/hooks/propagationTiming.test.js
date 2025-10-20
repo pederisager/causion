@@ -61,6 +61,25 @@ test("deterministic lag scheduling uses consistent delays", async (t) => {
   t.mock.timers.reset();
 });
 
+test("rescheduling a node clears stale pending timers", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+
+  const nodeTimers = new Map();
+  const pending = [];
+  const fired = [];
+
+  scheduleNodeDisplayUpdate(nodeTimers, pending, "B", 80, () => fired.push("old"));
+  scheduleNodeDisplayUpdate(nodeTimers, pending, "B", 40, () => fired.push("new"));
+
+  t.mock.timers.tick(40);
+  assert.deepEqual(fired, ["new"], "only the latest timer should fire");
+
+  t.mock.timers.tick(100);
+  assert.deepEqual(fired, ["new"], "stale timers remain cancelled");
+
+  t.mock.timers.reset();
+});
+
 test("seeded nodes commit immediately before timers fire", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
 
