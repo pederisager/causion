@@ -7,7 +7,7 @@ import {
 } from "../../src/utils/timers.js";
 import { __TEST_ONLY__ as helpers } from "../../src/hooks/usePropagationEffects.js";
 
-const { computePropagationPlan, collectPropagationSeeds } = helpers;
+const { computePropagationPlan, collectPropagationSeeds, createNodeDisplayUpdater } = helpers;
 
 function makeGraph(entries) {
   const map = new Map();
@@ -61,6 +61,25 @@ test("deterministic lag scheduling uses consistent delays", async (t) => {
   t.mock.timers.reset();
 });
 
+test("rescheduling a node clears stale pending timers", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+
+  const nodeTimers = new Map();
+  const pending = [];
+  const fired = [];
+
+  scheduleNodeDisplayUpdate(nodeTimers, pending, "B", 80, () => fired.push("old"));
+  scheduleNodeDisplayUpdate(nodeTimers, pending, "B", 40, () => fired.push("new"));
+
+  t.mock.timers.tick(40);
+  assert.deepEqual(fired, ["new"], "only the latest timer should fire");
+
+  t.mock.timers.tick(100);
+  assert.deepEqual(fired, ["new"], "stale timers remain cancelled");
+
+  t.mock.timers.reset();
+});
+
 test("seeded nodes commit immediately before timers fire", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
 
@@ -102,6 +121,36 @@ test("seeded nodes commit immediately before timers fire", async (t) => {
 
   t.mock.timers.tick(40);
   assert.equal(display.B, 9);
+
+  t.mock.timers.reset();
+});
+
+test("node display updater reads the latest value when the timer fires", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+
+  const nodeTimers = new Map();
+  const pending = [];
+  const lastValuesRef = { current: { B: 1 } };
+  let display = { B: 0 };
+
+  const setDisplayValues = (updater) => {
+    display = typeof updater === "function" ? updater(display) : updater;
+    return display;
+  };
+
+  scheduleNodeDisplayUpdate(
+    nodeTimers,
+    pending,
+    "B",
+    60,
+    createNodeDisplayUpdater(lastValuesRef, "B", setDisplayValues)
+  );
+
+  lastValuesRef.current = { B: 42 };
+
+  t.mock.timers.tick(60);
+
+  assert.equal(display.B, 42);
 
   t.mock.timers.reset();
 });

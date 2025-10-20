@@ -46,6 +46,17 @@ function computePropagationPlan(seeds, parentToChildren, lag) {
   return plan;
 }
 
+function createNodeDisplayUpdater(lastValuesRef, nodeId, setDisplayValues) {
+  return () => {
+    const latestValues = lastValuesRef.current || {};
+    const latest = latestValues[nodeId];
+    setDisplayValues((prev) => {
+      if (prev[nodeId] === latest) return prev;
+      return { ...prev, [nodeId]: latest };
+    });
+  };
+}
+
 function collectPropagationSeeds({
   changedIds,
   directChanged,
@@ -282,7 +293,7 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
         pendingTimersRef.current,
         step.node,
         step.delay,
-        () => setDisplayValues((prev) => ({ ...prev, [step.node]: values[step.node] }))
+        createNodeDisplayUpdater(lastValuesRef, step.node, setDisplayValues)
       );
 
       const edgeId = `${step.parent}->${step.node}`;
@@ -477,4 +488,5 @@ export const __TEST_ONLY__ = {
   computePropagationPlan,
   buildActiveClampMap,
   collectPropagationSeeds,
+  createNodeDisplayUpdater,
 };
