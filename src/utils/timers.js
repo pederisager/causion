@@ -3,9 +3,14 @@
  * marching-ants pulses.
  */
 export function scheduleNodeDisplayUpdate(nodeTimerMap, pendingTimers, nodeId, delay, updateFn) {
-  const timersForNode = nodeTimerMap.get(nodeId) ?? new Set();
-  if (!nodeTimerMap.has(nodeId)) {
+  let timersForNode = nodeTimerMap.get(nodeId);
+  if (!timersForNode) {
+    timersForNode = new Set();
     nodeTimerMap.set(nodeId, timersForNode);
+  }
+
+  if (timersForNode.size > 0) {
+    return timersForNode.values().next().value;
   }
 
   const timer = setTimeout(() => {
@@ -14,6 +19,8 @@ export function scheduleNodeDisplayUpdate(nodeTimerMap, pendingTimers, nodeId, d
     if (timersForNode.size === 0) {
       nodeTimerMap.delete(nodeId);
     }
+    const index = pendingTimers.indexOf(timer);
+    if (index !== -1) pendingTimers.splice(index, 1);
   }, delay);
 
   timersForNode.add(timer);
