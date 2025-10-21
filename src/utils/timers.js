@@ -7,6 +7,13 @@ export function scheduleNodeDisplayUpdate(nodeTimerMap, pendingTimers, nodeId, d
   if (!timersForNode) {
     timersForNode = new Set();
     nodeTimerMap.set(nodeId, timersForNode);
+  } else if (timersForNode.size) {
+    for (const existing of [...timersForNode]) {
+      clearTimeout(existing);
+      timersForNode.delete(existing);
+      const index = pendingTimers.indexOf(existing);
+      if (index !== -1) pendingTimers.splice(index, 1);
+    }
   }
 
   if (timersForNode.size > 0) {
