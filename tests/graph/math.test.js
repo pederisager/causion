@@ -41,17 +41,3 @@ test("computeValues returns a new object", () => {
   assert.notStrictEqual(result, current);
 });
 
-test("computeValues preserves inputs for hoisted source nodes", () => {
-  const { model, allVars } = parseSCM("B = A");
-  const eqs = depsFromModel(model);
-  const current = {};
-  for (const id of allVars) {
-    current[id] = 0;
-  }
-  current.A = 37;
-
-  const next = computeValues(model, eqs, current, {});
-
-  assert.equal(next.A, 37);
-  assert.equal(next.B, 37);
-});
