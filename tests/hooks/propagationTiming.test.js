@@ -61,7 +61,7 @@ test("deterministic lag scheduling uses consistent delays", async (t) => {
   t.mock.timers.reset();
 });
 
-test("pending node timers are reused and emit the freshest value", async (t) => {
+test("pending node timers queue follow-up requests and stay fresh", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
 
   const nodeTimers = new Map();
@@ -92,7 +92,7 @@ test("pending node timers are reused and emit the freshest value", async (t) => 
   );
 
   assert.equal(secondTimer, firstTimer, "subsequent schedules reuse the pending timer");
-  assert.equal(pending.length, 1, "only one timer is tracked while pending");
+  assert.equal(pending.length, 1, "only one timer is tracked while the first is pending");
 
   lastValuesRef.current = { B: 42 };
   scheduleNodeDisplayUpdate(
@@ -105,7 +105,13 @@ test("pending node timers are reused and emit the freshest value", async (t) => 
 
   t.mock.timers.tick(60);
   assert.equal(display.B, 42, "the display reflects the freshest value when the timer fires");
-  assert.equal(pending.length, 0, "fired timers are removed from the pending list");
+  assert.equal(pending.length, 1, "a queued update schedules a new timer after the first fires");
+
+  lastValuesRef.current = { B: 77 };
+
+  t.mock.timers.tick(60);
+  assert.equal(display.B, 77, "the follow-up timer applies the next freshest value");
+  assert.equal(pending.length, 0, "pending timers drain once queued updates are flushed");
 
   t.mock.timers.reset();
 });
