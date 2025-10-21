@@ -8,6 +8,6 @@ export const DEFAULT_FEATURE_FLAGS = {
   anchorHandles: true,
   layoutFreeform: false,
   causalFlow: true,
-  causalLagMs: 250,
+  causalLagMs: 50,
   flowPulseMs: 900,
 };
