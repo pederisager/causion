@@ -3,20 +3,42 @@
  * marching-ants pulses.
  */
 export function scheduleNodeDisplayUpdate(nodeTimerMap, pendingTimers, nodeId, delay, updateFn) {
-  const timersForNode = nodeTimerMap.get(nodeId) ?? new Set();
-  if (!nodeTimerMap.has(nodeId)) {
-    nodeTimerMap.set(nodeId, timersForNode);
+  let entry = nodeTimerMap.get(nodeId);
+  if (!entry) {
+    entry = { timer: null, hasQueued: false, nextDelay: delay, latestUpdateFn: updateFn };
+    nodeTimerMap.set(nodeId, entry);
+  } else {
+    entry.nextDelay = delay;
+    entry.latestUpdateFn = updateFn;
+  }
+
+  if (entry.timer) {
+    entry.hasQueued = true;
+    return entry.timer;
   }
 
   const timer = setTimeout(() => {
-    updateFn();
-    timersForNode.delete(timer);
-    if (timersForNode.size === 0) {
-      nodeTimerMap.delete(nodeId);
+    entry.latestUpdateFn();
+    const index = pendingTimers.indexOf(timer);
+    if (index !== -1) pendingTimers.splice(index, 1);
+    entry.timer = null;
+
+    if (entry.hasQueued) {
+      entry.hasQueued = false;
+      scheduleNodeDisplayUpdate(
+        nodeTimerMap,
+        pendingTimers,
+        nodeId,
+        entry.nextDelay,
+        entry.latestUpdateFn
+      );
+      return;
     }
+
+    nodeTimerMap.delete(nodeId);
   }, delay);
 
-  timersForNode.add(timer);
+  entry.timer = timer;
   pendingTimers.push(timer);
   return timer;
 }
@@ -68,8 +90,10 @@ export function clearPendingTimers(pendingTimers, nodeTimerMap, edgeTimerMap) {
   pendingTimers.forEach((timer) => clearTimeout(timer));
   pendingTimers.length = 0;
 
-  nodeTimerMap.forEach((timerSet) => {
-    timerSet.forEach((timer) => clearTimeout(timer));
+  nodeTimerMap.forEach((entry) => {
+    if (entry.timer) {
+      clearTimeout(entry.timer);
+    }
   });
   nodeTimerMap.clear();
 

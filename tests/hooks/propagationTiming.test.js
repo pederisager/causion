@@ -7,7 +7,7 @@ import {
 } from "../../src/utils/timers.js";
 import { __TEST_ONLY__ as helpers } from "../../src/hooks/usePropagationEffects.js";
 
-const { computePropagationPlan, collectPropagationSeeds } = helpers;
+const { computePropagationPlan, collectPropagationSeeds, createNodeDisplayUpdater } = helpers;
 
 function makeGraph(entries) {
   const map = new Map();
@@ -61,6 +61,61 @@ test("deterministic lag scheduling uses consistent delays", async (t) => {
   t.mock.timers.reset();
 });
 
+test("pending node timers queue follow-up requests and stay fresh", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+
+  const nodeTimers = new Map();
+  const pending = [];
+  const lastValuesRef = { current: { B: 1 } };
+  let display = { B: 0 };
+
+  const setDisplayValues = (updater) => {
+    display = typeof updater === "function" ? updater(display) : updater;
+    return display;
+  };
+
+  const firstTimer = scheduleNodeDisplayUpdate(
+    nodeTimers,
+    pending,
+    "B",
+    60,
+    createNodeDisplayUpdater(lastValuesRef, "B", setDisplayValues)
+  );
+
+  lastValuesRef.current = { B: 5 };
+  const secondTimer = scheduleNodeDisplayUpdate(
+    nodeTimers,
+    pending,
+    "B",
+    60,
+    createNodeDisplayUpdater(lastValuesRef, "B", setDisplayValues)
+  );
+
+  assert.equal(secondTimer, firstTimer, "subsequent schedules reuse the pending timer");
+  assert.equal(pending.length, 1, "only one timer is tracked while the first is pending");
+
+  lastValuesRef.current = { B: 42 };
+  scheduleNodeDisplayUpdate(
+    nodeTimers,
+    pending,
+    "B",
+    60,
+    createNodeDisplayUpdater(lastValuesRef, "B", setDisplayValues)
+  );
+
+  t.mock.timers.tick(60);
+  assert.equal(display.B, 42, "the display reflects the freshest value when the timer fires");
+  assert.equal(pending.length, 1, "a queued update schedules a new timer after the first fires");
+
+  lastValuesRef.current = { B: 77 };
+
+  t.mock.timers.tick(60);
+  assert.equal(display.B, 77, "the follow-up timer applies the next freshest value");
+  assert.equal(pending.length, 0, "pending timers drain once queued updates are flushed");
+
+  t.mock.timers.reset();
+});
+
 test("seeded nodes commit immediately before timers fire", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
 
@@ -102,6 +157,36 @@ test("seeded nodes commit immediately before timers fire", async (t) => {
 
   t.mock.timers.tick(40);
   assert.equal(display.B, 9);
+
+  t.mock.timers.reset();
+});
+
+test("node display updater reads the latest value when the timer fires", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+
+  const nodeTimers = new Map();
+  const pending = [];
+  const lastValuesRef = { current: { B: 1 } };
+  let display = { B: 0 };
+
+  const setDisplayValues = (updater) => {
+    display = typeof updater === "function" ? updater(display) : updater;
+    return display;
+  };
+
+  scheduleNodeDisplayUpdate(
+    nodeTimers,
+    pending,
+    "B",
+    60,
+    createNodeDisplayUpdater(lastValuesRef, "B", setDisplayValues)
+  );
+
+  lastValuesRef.current = { B: 42 };
+
+  t.mock.timers.tick(60);
+
+  assert.equal(display.B, 42);
 
   t.mock.timers.reset();
 });
