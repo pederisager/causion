@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computeValues } from "../../src/graph/math.js";
 import { depsFromModel } from "../../src/graph/topology.js";
+import { parseSCM } from "../../src/graph/parser.js";
 
 const MODEL = new Map([
   ["U", { parents: {}, constant: 2 }],
