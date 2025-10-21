@@ -61,21 +61,51 @@ test("deterministic lag scheduling uses consistent delays", async (t) => {
   t.mock.timers.reset();
 });
 
-test("rescheduling a node clears stale pending timers", async (t) => {
+test("pending node timers are reused and emit the freshest value", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
 
   const nodeTimers = new Map();
   const pending = [];
-  const fired = [];
+  const lastValuesRef = { current: { B: 1 } };
+  let display = { B: 0 };
 
-  scheduleNodeDisplayUpdate(nodeTimers, pending, "B", 80, () => fired.push("old"));
-  scheduleNodeDisplayUpdate(nodeTimers, pending, "B", 40, () => fired.push("new"));
+  const setDisplayValues = (updater) => {
+    display = typeof updater === "function" ? updater(display) : updater;
+    return display;
+  };
 
-  t.mock.timers.tick(40);
-  assert.deepEqual(fired, ["new"], "only the latest timer should fire");
+  const firstTimer = scheduleNodeDisplayUpdate(
+    nodeTimers,
+    pending,
+    "B",
+    60,
+    createNodeDisplayUpdater(lastValuesRef, "B", setDisplayValues)
+  );
 
-  t.mock.timers.tick(100);
-  assert.deepEqual(fired, ["new"], "stale timers remain cancelled");
+  lastValuesRef.current = { B: 5 };
+  const secondTimer = scheduleNodeDisplayUpdate(
+    nodeTimers,
+    pending,
+    "B",
+    60,
+    createNodeDisplayUpdater(lastValuesRef, "B", setDisplayValues)
+  );
+
+  assert.equal(secondTimer, firstTimer, "subsequent schedules reuse the pending timer");
+  assert.equal(pending.length, 1, "only one timer is tracked while pending");
+
+  lastValuesRef.current = { B: 42 };
+  scheduleNodeDisplayUpdate(
+    nodeTimers,
+    pending,
+    "B",
+    60,
+    createNodeDisplayUpdater(lastValuesRef, "B", setDisplayValues)
+  );
+
+  t.mock.timers.tick(60);
+  assert.equal(display.B, 42, "the display reflects the freshest value when the timer fires");
+  assert.equal(pending.length, 0, "fired timers are removed from the pending list");
 
   t.mock.timers.reset();
 });

@@ -16,12 +16,18 @@ export function scheduleNodeDisplayUpdate(nodeTimerMap, pendingTimers, nodeId, d
     }
   }
 
+  if (timersForNode.size > 0) {
+    return timersForNode.values().next().value;
+  }
+
   const timer = setTimeout(() => {
     updateFn();
     timersForNode.delete(timer);
     if (timersForNode.size === 0) {
       nodeTimerMap.delete(nodeId);
     }
+    const index = pendingTimers.indexOf(timer);
+    if (index !== -1) pendingTimers.splice(index, 1);
   }, delay);
 
   timersForNode.add(timer);
