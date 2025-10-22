@@ -88,15 +88,16 @@ test("buildActiveClampMap toggles ephemeral clamp while dragging", () => {
   const allVars = new Set(["A", "B"]);
   const interventions = { A: false, B: true };
   const autoPlay = { A: true, B: false };
+  const randomPlay = { A: false, B: false };
   const dragging = { A: false, B: true };
 
-  const map = buildActiveClampMap(allVars, interventions, autoPlay, dragging, {
+  const map = buildActiveClampMap(allVars, interventions, autoPlay, randomPlay, dragging, {
     ephemeralClamp: true,
   });
 
   assert.deepEqual(map, { A: true, B: true });
 
-  const disabled = buildActiveClampMap(allVars, interventions, autoPlay, dragging, {
+  const disabled = buildActiveClampMap(allVars, interventions, autoPlay, randomPlay, dragging, {
     ephemeralClamp: false,
   });
   assert.deepEqual(disabled, { A: true, B: true }, "auto play and interventions still clamp");
@@ -108,6 +109,7 @@ test("collectPropagationSeeds enforces immediate updates for direct changes", ()
     directChanged: { A: true },
     interventions: { B: true },
     autoPlay: { C: true },
+    randomPlay: {},
     dragging: { A: false, B: false, C: false },
     features: { ephemeralClamp: true },
   });
@@ -121,6 +123,7 @@ test("collectPropagationSeeds only flags drag events when ephemeral clamp active
     directChanged: {},
     interventions: {},
     autoPlay: {},
+    randomPlay: {},
     dragging: { D: true },
     features: { ephemeralClamp: true },
   });
@@ -131,6 +134,7 @@ test("collectPropagationSeeds only flags drag events when ephemeral clamp active
     directChanged: {},
     interventions: {},
     autoPlay: {},
+    randomPlay: {},
     dragging: { D: true },
     features: { ephemeralClamp: false },
   });

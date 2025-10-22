@@ -128,6 +128,7 @@ test("seeded nodes commit immediately before timers fire", async (t) => {
     directChanged: { A: true },
     interventions: {},
     autoPlay: {},
+    randomPlay: {},
     dragging: { A: false },
     features: { ephemeralClamp: false },
   });

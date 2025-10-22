@@ -30,6 +30,6 @@ Every change must preserve the four core behaviors that define the Causion exper
 1. **Seeded causal lag propagation** still produces deterministic, reproducible animation timing.
 2. **Immediate source updates** keep dependent nodes in sync as soon as a source node changes.
 3. **Marching-ants edge animation** remains visible and responsive on causal links.
-4. **Ephemeral clamp behavior** ensures that dragging a slider clamps temporarily, and releasing it resets the value unless “Clamp (do)” is enabled.
+4. **Ephemeral clamp behavior** ensures that dragging a slider clamps temporarily, and releasing it resets the value unless “do()” is enabled.
 
 Document in your pull request how you verified these invariants—via automated coverage, manual testing, or both.

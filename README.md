@@ -9,7 +9,7 @@
 - **Causal flow animation**: “Marching‑ants” animated edges show direction of effect propagation.
 - **Seeded causal lag**: Updates propagate with a consistent, reproducible lag to make sequences visible.
 - **Immediate source updates**: Source node changes update dependents without extra clicks.
-- **Ephemeral clamp while dragging**: Dragging a slider temporarily clamps a variable; on release it **resets to baseline** unless “Clamp (do)” is explicitly enabled (fixes the classic “stuck after drop” bug).
+- **Ephemeral clamp while dragging**: Dragging a slider temporarily clamps a variable; on release it **resets to baseline** unless “do()” is explicitly enabled (fixes the classic “stuck after drop” bug).
 
 ## Why use Causion?
 - **See** how interventions ripple through a causal graph.

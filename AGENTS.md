@@ -24,7 +24,7 @@ Interactive **DAG visual simulation app** (React + Vite) demonstrating causal fl
 1. **Seeded causal lag propagation remains deterministic.**
 2. **Immediate source updates**: upstream node changes appear instantly.
 3. **Marching‑ants edge animation** stays active and visually consistent.
-4. **Ephemeral clamp on drag**: dragging a slider temporarily clamps; releasing returns value + color/label to baseline unless “Clamp (do)” is selected.
+4. **Ephemeral clamp on drag**: dragging a slider temporarily clamps; releasing returns value + color/label to baseline unless “do()” is selected.
 
 If a change risks any invariant, stop, surface the concern, and mark the PR `needs-human-review`.
 
@@ -45,7 +45,7 @@ If a change risks any invariant, stop, surface the concern, and mark the PR `nee
    - Run `npm test`.
    - Add or update Vitest + React Testing Library specs when behavior changes.
    - Maintain (or add) a smoke test ensuring the app mounts without errors.
-   - For slider interactions, ensure tests cover drag → release → auto-unclamp, plus “Clamp (do)” persistence.
+  - For slider interactions, ensure tests cover drag → release → auto-unclamp, plus “do()” persistence.
 5. **Manual verification**:
    - `npm run dev`
    - Navigate to the affected UI

@@ -96,26 +96,39 @@ export function createApp(overrides = {}) {
           h(
             "label",
             { className: "ml-auto text-xs flex items-center gap-2" },
-            h(
-              "button",
-              {
-                className:
-                  "px-2 py-0.5 rounded border " + (propagation.autoPlay[id] ? "bg-green-50 border-green-400" : ""),
-                title: "Toggle auto (triangle wave)",
-                onClick: () => propagation.toggleAutoPlay(id),
-              },
-              propagation.autoPlay[id] ? "⏸ auto" : "▶ auto"
-            ),
-            h("span", null, "|"),
-            h("input", {
-              type: "checkbox",
-              className: "mr-1",
-              checked: !!propagation.interventions[id],
-              disabled: !!propagation.autoPlay[id],
-              "aria-label": "Clamp (do)",
-              onChange: (e) => propagation.setClamp(id, e.target.checked),
-            }),
-            "clamp (do)"
+          h(
+            "button",
+            {
+              className:
+                "px-2 py-0.5 rounded border " + (propagation.autoPlay[id] ? "bg-green-50 border-green-400" : ""),
+              title: "Toggle slide (triangle wave)",
+              onClick: () => propagation.toggleAutoPlay(id),
+            },
+            propagation.autoPlay[id] ? "⏸ slide" : "▶ slide"
+          ),
+          h("span", null, "|"),
+          h(
+            "button",
+            {
+              className:
+                "px-2 py-0.5 rounded border " +
+                (propagation.randomPlay[id] ? "bg-blue-50 border-blue-400" : ""),
+              title: "Toggle random (uniform draw)",
+              onClick: () => propagation.toggleRandomPlay(id),
+              disabled: !!propagation.interventions[id],
+            },
+            propagation.randomPlay[id] ? "⏸ random" : "🎲 random"
+          ),
+          h("span", null, "|"),
+          h("input", {
+            type: "checkbox",
+            className: "mr-1",
+            checked: !!propagation.interventions[id],
+            disabled: !!propagation.autoPlay[id],
+            "aria-label": "Toggle do()",
+            onChange: (e) => propagation.setClamp(id, e.target.checked),
+          }),
+          "do()"
           )
         ),
         h("input", {

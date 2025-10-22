@@ -5,11 +5,15 @@ import { tri } from "../data/presets.js";
 
 const DEFAULT_RANGE = { min: -100, max: 100 };
 
-function buildActiveClampMap(allVars, interventions, autoPlay, dragging, features) {
+function buildActiveClampMap(allVars, interventions, autoPlay, randomPlay, dragging, features) {
   const out = {};
   const useEphemeral = !!(features && features.ephemeralClamp);
   for (const id of allVars) {
-    out[id] = !!interventions[id] || !!autoPlay[id] || (useEphemeral && !!dragging[id]);
+    out[id] =
+      !!interventions[id] ||
+      !!autoPlay[id] ||
+      !!randomPlay[id] ||
+      (useEphemeral && !!dragging[id]);
   }
   return out;
 }
@@ -62,6 +66,7 @@ function collectPropagationSeeds({
   directChanged,
   interventions,
   autoPlay,
+  randomPlay,
   dragging,
   features,
 }) {
@@ -73,6 +78,7 @@ function collectPropagationSeeds({
       directChanged[id] ||
       interventions[id] ||
       autoPlay[id] ||
+      randomPlay[id] ||
       (useEphemeral && dragging[id])
     ) {
       out.push(id);
@@ -89,6 +95,7 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
   const [autoPlay, setAutoPlay] = useState({});
   const [autoPeriod, setAutoPeriod] = useState({});
   const [autoStart, setAutoStart] = useState({});
+  const [randomPlay, setRandomPlay] = useState({});
   const [dragging, setDragging] = useState({});
   const [edgeHot, setEdgeHot] = useState({});
 
@@ -99,6 +106,9 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
   const nodeUpdateTimersRef = useRef(new Map());
   const edgeTimersRef = useRef(new Map());
   const rafRef = useRef(null);
+  const randomTimersRef = useRef(new Map());
+  const randomPlayRef = useRef({});
+  const rangesRef = useRef({});
 
   const parentToChildren = useMemo(() => {
     const map = new Map();
@@ -184,6 +194,16 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
       }
       return next;
     });
+    setRandomPlay((prev) => {
+      const next = { ...prev };
+      ids.forEach((id) => {
+        if (next[id] == null) next[id] = false;
+      });
+      for (const key of Object.keys(next)) {
+        if (!allVars.has(key)) delete next[key];
+      }
+      return next;
+    });
     setDragging((prev) => {
       const next = { ...prev };
       ids.forEach((id) => {
@@ -196,9 +216,17 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
     });
   }, [allVars]);
 
+  useEffect(() => {
+    randomPlayRef.current = randomPlay;
+  }, [randomPlay]);
+
+  useEffect(() => {
+    rangesRef.current = ranges;
+  }, [ranges]);
+
   const activeClamp = useMemo(
-    () => buildActiveClampMap(allVars, interventions, autoPlay, dragging, features),
-    [allVars, interventions, autoPlay, dragging, features]
+    () => buildActiveClampMap(allVars, interventions, autoPlay, randomPlay, dragging, features),
+    [allVars, interventions, autoPlay, randomPlay, dragging, features]
   );
 
   useEffect(() => {
@@ -270,6 +298,7 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
       directChanged: directChangedRef.current,
       interventions,
       autoPlay,
+      randomPlay,
       dragging,
       features,
     });
@@ -338,8 +367,31 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
     return () => {
       clearPendingTimers(pendingTimersRef.current, nodeUpdateTimersRef.current, edgeTimersRef.current);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      randomTimersRef.current.forEach((timer) => clearTimeout(timer));
+      randomTimersRef.current.clear();
     };
   }, []);
+
+  const removePendingTimer = useCallback((timer) => {
+    if (!timer) return;
+    const list = pendingTimersRef.current;
+    const idx = list.indexOf(timer);
+    if (idx !== -1) {
+      list.splice(idx, 1);
+    }
+  }, []);
+
+  const clearRandomTimer = useCallback(
+    (id) => {
+      const timers = randomTimersRef.current;
+      const handle = timers.get(id);
+      if (!handle) return;
+      clearTimeout(handle);
+      removePendingTimer(handle);
+      timers.delete(id);
+    },
+    [removePendingTimer]
+  );
 
   const applyValue = useCallback(
     (id, raw, { syncAutoPhase } = {}) => {
@@ -378,6 +430,57 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
     (id, raw) => applyValue(id, raw),
     [applyValue]
   );
+
+  useEffect(() => {
+    const timers = randomTimersRef.current;
+
+    timers.forEach((_, id) => {
+      if (!randomPlay[id]) {
+        clearRandomTimer(id);
+      }
+    });
+
+    const activeIds = Object.keys(randomPlay).filter((id) => randomPlay[id]);
+
+    activeIds.forEach((id) => {
+      clearRandomTimer(id);
+      startRandomLoop(id);
+    });
+
+    function startRandomLoop(id) {
+      function scheduleNext() {
+        if (!randomPlayRef.current[id]) {
+          clearRandomTimer(id);
+          return;
+        }
+        const periodSec = Math.max(0.1, Number(autoPeriod[id] || 4));
+        const delay = Math.max(50, (periodSec * 1000) / 20);
+        const timer = setTimeout(() => {
+          removePendingTimer(timer);
+          randomTimersRef.current.delete(id);
+          tick();
+        }, delay);
+        randomTimersRef.current.set(id, timer);
+        pendingTimersRef.current.push(timer);
+      }
+
+      function tick() {
+        if (!randomPlayRef.current[id]) {
+          clearRandomTimer(id);
+          return;
+        }
+        const currentRanges = rangesRef.current || {};
+        const range = currentRanges[id] || DEFAULT_RANGE;
+        const span = range.max - range.min;
+        const raw = span === 0 ? range.min : range.min + Math.random() * span;
+        const quantized = Math.round(raw);
+        applyValue(id, quantized);
+        scheduleNext();
+      }
+
+      tick();
+    }
+  }, [randomPlay, autoPeriod, applyValue, clearRandomTimer, removePendingTimer]);
 
   const handleRangeMinChange = useCallback(
     (id, raw) => {
@@ -433,20 +536,67 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
     [ranges]
   );
 
-  const toggleAutoPlay = useCallback((id) => {
-    setAutoPlay((prev) => {
-      const next = { ...prev, [id]: !prev[id] };
-      if (!prev[id]) {
-        const now = performance?.now?.() ?? Date.now();
-        setAutoStart((prevStart) => ({ ...prevStart, [id]: { t0: now, p0: 0 } }));
-      }
-      return next;
-    });
-  }, []);
+  const toggleAutoPlay = useCallback(
+    (id) => {
+      setAutoPlay((prev) => {
+        const wasActive = !!prev[id];
+        const next = { ...prev, [id]: !wasActive };
+        if (!wasActive) {
+          const now = performance?.now?.() ?? Date.now();
+          setAutoStart((prevStart) => ({ ...prevStart, [id]: { t0: now, p0: 0 } }));
+          setRandomPlay((prevRandom) => {
+            if (!prevRandom[id]) return prevRandom;
+            clearRandomTimer(id);
+            return { ...prevRandom, [id]: false };
+          });
+        }
+        return next;
+      });
+    },
+    [clearRandomTimer]
+  );
 
-  const setClamp = useCallback((id, value) => {
-    setInterventions((prev) => ({ ...prev, [id]: value }));
-  }, []);
+  const toggleRandomPlay = useCallback(
+    (id) => {
+      setRandomPlay((prev) => {
+        const wasActive = !!prev[id];
+        const nextActive = !wasActive;
+        const next = { ...prev, [id]: nextActive };
+        if (nextActive) {
+          setAutoPlay((prevAuto) => {
+            if (!prevAuto[id]) return prevAuto;
+            return { ...prevAuto, [id]: false };
+          });
+          setInterventions((prevInterventions) => {
+            if (!prevInterventions[id]) return prevInterventions;
+            return { ...prevInterventions, [id]: false };
+          });
+        } else {
+          clearRandomTimer(id);
+        }
+        return next;
+      });
+    },
+    [clearRandomTimer]
+  );
+
+  const setClamp = useCallback(
+    (id, value) => {
+      if (value) {
+        setRandomPlay((prevRandom) => {
+          if (!prevRandom[id]) return prevRandom;
+          clearRandomTimer(id);
+          return { ...prevRandom, [id]: false };
+        });
+        setAutoPlay((prevAuto) => {
+          if (!prevAuto[id]) return prevAuto;
+          return { ...prevAuto, [id]: false };
+        });
+      }
+      setInterventions((prev) => ({ ...prev, [id]: value }));
+    },
+    [clearRandomTimer]
+  );
 
   const handleAutoPeriodChange = useCallback((id, raw) => {
     const sec = Math.max(0.1, Number(raw) || 0.1);
@@ -467,10 +617,12 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
     interventions,
     ranges,
     autoPlay,
+    randomPlay,
     autoPeriod,
     dragging,
     edgeHot,
     toggleAutoPlay,
+    toggleRandomPlay,
     setClamp,
     handleValueChange,
     handleValueCommit,

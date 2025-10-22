@@ -60,7 +60,7 @@ describe("Slider clamp integration", () => {
     // Value label uses the span.opacity-70 inside the slider row (defined in src/App.js).
     const getValueLabel = () => sliderRow.querySelector("span.opacity-70");
     const slider = within(sliderRow).getByRole("slider");
-    const clampToggle = within(sliderRow).getByRole("checkbox", { name: /clamp \(do\)/i });
+    const clampToggle = within(sliderRow).getByRole("checkbox", { name: /do\(\)/i });
 
     expect(getValueLabel()).toHaveTextContent("0.00");
     expect(clampToggle).not.toBeChecked();
