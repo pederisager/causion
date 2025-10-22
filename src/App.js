@@ -44,6 +44,7 @@ export function createApp(overrides = {}) {
     const h = React.createElement;
     const reactFlow = useFlowHook();
     const [features, setFeatures] = useState(defaultFeatures);
+    const [isDevPanelVisible, setIsDevPanelVisible] = useState(false);
 
     const defaultPreset = PRESETS[0]?.text ?? "";
     const { scmText, setScmText, error, model, eqs, allVars, graphSignature } = useScmModel(defaultPreset);
@@ -110,6 +111,7 @@ export function createApp(overrides = {}) {
               className: "mr-1",
               checked: !!propagation.interventions[id],
               disabled: !!propagation.autoPlay[id],
+              "aria-label": "Clamp (do)",
               onChange: (e) => propagation.setClamp(id, e.target.checked),
             }),
             "clamp (do)"
@@ -182,7 +184,7 @@ export function createApp(overrides = {}) {
 
     const scmPanel = h(
       "div",
-      { className: "rounded-2xl shadow p-4 border" },
+      { className: "rounded-2xl shadow p-4 border w-full" },
       h("div", { className: "text-lg font-bold mb-2" }, "SCM"),
       h("div", { className: "flex gap-2 mb-2" }, presetButtons),
       h("textarea", {
@@ -202,18 +204,19 @@ export function createApp(overrides = {}) {
 
     const assignPanel = h(
       "div",
-      { className: "rounded-2xl shadow p-4 border" },
+      { className: "rounded-2xl shadow p-4 border w-full" },
       h("div", { className: "text-lg font-bold mb-2" }, "Assign Values (intervene)"),
       sliderRows
     );
 
     const leftColumn = h(
       "div",
-      { className: "col-span-4 space-y-4" },
-      h("h1", { className: "text-3xl font-extrabold" }, "Interactive DAG"),
-      h(DevPanel, { features, setFeatures }),
+      {
+        className: "flex flex-col gap-4 w-full max-w-sm shrink-0 overflow-y-auto pr-1",
+      },
+      assignPanel,
       scmPanel,
-      assignPanel
+      isDevPanelVisible ? h(DevPanel, { features, setFeatures }) : null
     );
 
     const flowChildren = [
@@ -224,7 +227,7 @@ export function createApp(overrides = {}) {
 
     const rightColumn = h(
       "div",
-      { className: "col-span-8" },
+      { className: "flex-1 min-h-0" },
       h(
         "style",
         null,
@@ -248,14 +251,35 @@ export function createApp(overrides = {}) {
       )
     );
 
+    const devToggleButton = h(
+      "button",
+      {
+        type: "button",
+        className: "px-3 py-1 rounded border shadow-sm text-sm",
+        onClick: () => setIsDevPanelVisible((previous) => !previous),
+        "aria-expanded": isDevPanelVisible,
+      },
+      isDevPanelVisible ? "Hide dev panel" : "Show dev panel"
+    );
+
     return h(
       "div",
       {
-        className: "w-full h-full grid grid-cols-12 gap-4 p-4",
+        className: "w-full h-full flex flex-col gap-4 p-4",
         style: { fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system" },
       },
-      leftColumn,
-      rightColumn
+      h(
+        "div",
+        { className: "flex items-center justify-between gap-4" },
+        h("h1", { className: "text-3xl font-extrabold" }, "Interactive DAG"),
+        devToggleButton
+      ),
+      h(
+        "div",
+        { className: "flex flex-1 gap-4 overflow-hidden" },
+        leftColumn,
+        rightColumn
+      )
     );
   }
 

@@ -1,8 +1,23 @@
-import { afterEach } from "vitest";
+import { afterEach, vi } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import React from "react";
 import { defaultTestProviders, reactFlowBridgeStub } from "./shared.js";
+
+vi.mock("reactflow", () => ({
+  __esModule: true,
+  default: reactFlowBridgeStub.ReactFlow,
+  ...reactFlowBridgeStub,
+}));
+
+if (typeof Element !== "undefined") {
+  if (!Element.prototype.setPointerCapture) {
+    Element.prototype.setPointerCapture = () => {};
+  }
+  if (!Element.prototype.releasePointerCapture) {
+    Element.prototype.releasePointerCapture = () => {};
+  }
+}
 
 export { reactFlowBridgeStub } from "./shared.js";
 

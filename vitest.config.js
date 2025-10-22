@@ -16,5 +16,6 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./tests/setup/test-env.js"],
     ui: true,
+    include: ["tests/components/**/*.test.js", "tests/integration/**/*.test.js"],
   },
 });

@@ -1,6 +1,6 @@
 import React from "react";
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { screen, within, waitFor, fireEvent, act } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
+import { screen, within, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders, reactFlowBridgeStub } from "../setup/test-env.js";
 import { __TEST_ONLY__ as AppTestUtils } from "../../src/App.js";
@@ -42,21 +42,12 @@ function createFlowHarness() {
 }
 
 describe("Slider clamp integration", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    vi.runOnlyPendingTimers();
-    vi.useRealTimers();
-  });
-
   it("releases ephemeral clamps and preserves explicit clamps while keeping marching-ants edges", async () => {
     const FlowHarness = createFlowHarness();
     const bridge = { ...reactFlowBridgeStub, ReactFlow: FlowHarness };
     const { createApp } = AppTestUtils;
     const { App } = createApp(bridge);
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const user = userEvent.setup();
 
     renderWithProviders(React.createElement(App), { bridge });
 
@@ -75,8 +66,7 @@ describe("Slider clamp integration", () => {
     expect(clampToggle).not.toBeChecked();
     expect(sliderRow).toHaveClass("mb-4");
     expect(sliderRow).not.toHaveClass("is-clamped");
-
-    await user.pointer([{ target: slider, keys: "[MouseLeft]" }]);
+    fireEvent.mouseDown(slider);
     fireEvent.input(slider, { target: { value: "30" } });
 
     await waitFor(() => {
@@ -84,7 +74,7 @@ describe("Slider clamp integration", () => {
       expect(getValueLabel()).toHaveTextContent("30.00");
     });
 
-    await user.pointer([{ target: slider, keys: "[/MouseLeft]" }]);
+    fireEvent.mouseUp(slider);
 
     await waitFor(() => {
       expect(getValueLabel()).toHaveTextContent("0.00");
@@ -93,19 +83,18 @@ describe("Slider clamp integration", () => {
 
     expect(sliderRow.className).toBe("mb-4");
 
-    await act(() => {
-      vi.advanceTimersByTime(600);
-    });
-
-    await waitFor(() => {
-      const antsPath = document.querySelector('path[stroke-dasharray="8 8"]');
-      expect(antsPath).toBeTruthy();
-    });
+    await waitFor(
+      () => {
+        const antsPath = document.querySelector('path[stroke-dasharray="8 8"]');
+        expect(antsPath).toBeTruthy();
+      },
+      { timeout: 2000 }
+    );
 
     await user.click(clampToggle);
     await waitFor(() => expect(clampToggle).toBeChecked());
 
-    await user.pointer([{ target: slider, keys: "[MouseLeft]" }]);
+    fireEvent.mouseDown(slider);
     fireEvent.input(slider, { target: { value: "25" } });
 
     await waitFor(() => {
@@ -113,7 +102,7 @@ describe("Slider clamp integration", () => {
       expect(getValueLabel()).toHaveTextContent("25.00");
     });
 
-    await user.pointer([{ target: slider, keys: "[/MouseLeft]" }]);
+    fireEvent.mouseUp(slider);
 
     await waitFor(() => {
       expect(getValueLabel()).toHaveTextContent("25.00");

@@ -45,7 +45,7 @@ export default function DevPanel({ features, setFeatures }) {
 
   return React.createElement(
     "div",
-    { className: "rounded-2xl shadow p-4 border" },
+    { className: "rounded-2xl shadow p-4 border w-full" },
     React.createElement(
       "div",
       { className: "text-lg font-bold mb-2" },
