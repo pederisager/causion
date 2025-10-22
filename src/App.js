@@ -9,6 +9,7 @@ import ReactFlow, {
 import CircleNode from "./components/nodes/CircleNode.js";
 import CausalEdge from "./components/edges/CausalEdge.js";
 import DevPanel from "./components/panels/DevPanel.js";
+import DataVisualizationPanel from "./components/panels/DataVisualizationPanel.js";
 import { DEFAULT_FEATURE_FLAGS } from "./components/constants.js";
 import { PRESETS } from "./data/presets.js";
 import { useScmModel } from "./hooks/useScmModel.js";
@@ -235,7 +236,7 @@ export function createApp(overrides = {}) {
       ),
       h(
         "div",
-        { className: "rounded-2xl shadow border h-[80vh] overflow-hidden" },
+        { className: "relative rounded-2xl shadow border h-[80vh] overflow-hidden" },
         h(
           FlowComponent,
           {
@@ -247,7 +248,11 @@ export function createApp(overrides = {}) {
             onEdgesChange,
           },
           flowChildren
-        )
+        ),
+        h(DataVisualizationPanel, {
+          allVars,
+          values: propagation.values,
+        })
       )
     );
 
