@@ -69,4 +69,6 @@ Curious how we keep the four core behaviors stable? Read the detailed [Testing G
 Invariant-focused checks (such as the slider clamp flow) live alongside our integration specs—for example, see `tests/integration/SliderClamp.test.js`.
 
 ## License
-TBD.
+This project is dedicated to the public domain under the [Creative Commons CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) license.
+
+To the extent possible under law, the contributors have waived all copyright and related or neighboring rights to this work. You can copy, modify, distribute, and perform the work, even for commercial purposes, all without asking permission.
