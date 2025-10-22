@@ -154,5 +154,7 @@ jobs:
 
 ---
 
+Make sure to use use timeout <seconds> <cmd> with a sensible second count for running commands to avoid getting stuck. 
+
 *End of AGENTS.md*
 
