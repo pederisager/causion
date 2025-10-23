@@ -25,4 +25,19 @@ describe("App", () => {
 
     expect(screen.getByText("Dev Panel (feature flags)")).toBeInTheDocument();
   });
+
+  it("keeps the random toggle available while do() is active", () => {
+    const { createApp } = __TEST_ONLY__;
+    const { App } = createApp(reactFlowBridgeStub);
+
+    renderWithProviders(React.createElement(App));
+
+    const randomButton = screen.getAllByRole("button", { name: /random/i })[0];
+    expect(randomButton).toBeEnabled();
+
+    const clampCheckbox = screen.getAllByRole("checkbox", { name: /do\(\)/i })[0];
+    fireEvent.click(clampCheckbox);
+    expect(clampCheckbox).toBeChecked();
+    expect(randomButton).toBeEnabled();
+  });
 });

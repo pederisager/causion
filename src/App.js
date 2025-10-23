@@ -115,7 +115,6 @@ export function createApp(overrides = {}) {
                 (propagation.randomPlay[id] ? "bg-blue-50 border-blue-400" : ""),
               title: "Toggle random (uniform draw)",
               onClick: () => propagation.toggleRandomPlay(id),
-              disabled: !!propagation.interventions[id],
             },
             propagation.randomPlay[id] ? "⏸ random" : "🎲 random"
           ),

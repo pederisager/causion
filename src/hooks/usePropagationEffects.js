@@ -112,6 +112,9 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
   const randomTimersRef = useRef(new Map());
   const randomPlayRef = useRef({});
   const rangesRef = useRef({});
+  const prevAutoPlayRef = useRef({});
+  const prevRandomPlayRef = useRef({});
+  const prevInterventionsRef = useRef({});
 
   const parentToChildren = useMemo(() => {
     const map = new Map();
@@ -216,6 +219,48 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
   useEffect(() => {
     rangesRef.current = ranges;
   }, [ranges]);
+
+  useEffect(() => {
+    const prev = prevAutoPlayRef.current || {};
+    const combinedIds = new Set([
+      ...Object.keys(prev),
+      ...Object.keys(autoPlay || {}),
+    ]);
+    combinedIds.forEach((id) => {
+      if (prev[id] && !autoPlay[id]) {
+        directChangedRef.current[id] = true;
+      }
+    });
+    prevAutoPlayRef.current = { ...autoPlay };
+  }, [autoPlay]);
+
+  useEffect(() => {
+    const prev = prevRandomPlayRef.current || {};
+    const combinedIds = new Set([
+      ...Object.keys(prev),
+      ...Object.keys(randomPlay || {}),
+    ]);
+    combinedIds.forEach((id) => {
+      if (prev[id] && !randomPlay[id]) {
+        directChangedRef.current[id] = true;
+      }
+    });
+    prevRandomPlayRef.current = { ...randomPlay };
+  }, [randomPlay]);
+
+  useEffect(() => {
+    const prev = prevInterventionsRef.current || {};
+    const combinedIds = new Set([
+      ...Object.keys(prev),
+      ...Object.keys(interventions || {}),
+    ]);
+    combinedIds.forEach((id) => {
+      if (prev[id] && !interventions[id]) {
+        directChangedRef.current[id] = true;
+      }
+    });
+    prevInterventionsRef.current = { ...interventions };
+  }, [interventions]);
 
   const activeClamp = useMemo(
     () => buildActiveClampMap(allVars, interventions, autoPlay, randomPlay, dragging, features),
@@ -558,10 +603,6 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
           setAutoPlay((prevAuto) => {
             if (!prevAuto[id]) return prevAuto;
             return { ...prevAuto, [id]: false };
-          });
-          setInterventions((prevInterventions) => {
-            if (!prevInterventions[id]) return prevInterventions;
-            return { ...prevInterventions, [id]: false };
           });
         } else {
           clearRandomTimer(id);
