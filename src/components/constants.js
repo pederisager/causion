@@ -12,3 +12,6 @@ export const DEFAULT_FEATURE_FLAGS = {
   flowPulseMs: 900,
 };
 export const SCATTER_SAMPLE_INTERVAL_MS = 200;
+// Playback speeds for auto slide and random value updates.
+export const AUTO_SLIDE_PERIOD_SECONDS = 4;
+export const RANDOM_UPDATE_INTERVAL_MS = 150;

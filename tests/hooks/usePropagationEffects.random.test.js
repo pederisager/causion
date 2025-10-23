@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render } from "@testing-library/react";
 import { act } from "react-dom/test-utils";
 import { usePropagationEffects } from "../../src/hooks/usePropagationEffects.js";
+import { RANDOM_UPDATE_INTERVAL_MS } from "../../src/components/constants.js";
 
 function createHookHarness(onUpdate) {
   return function HookHarness() {
@@ -56,7 +57,6 @@ describe("usePropagationEffects – random mode", () => {
     await act(async () => {
       latest.handleRangeMinChange("A", 0);
       latest.handleRangeMaxChange("A", 10);
-      latest.handleAutoPeriodChange("A", 0.2);
     });
 
     await act(async () => {
@@ -67,12 +67,12 @@ describe("usePropagationEffects – random mode", () => {
     expect(latest.values.A).toBe(1);
 
     await act(async () => {
-      vi.advanceTimersByTime(50);
+      vi.advanceTimersByTime(RANDOM_UPDATE_INTERVAL_MS);
     });
     expect(latest.values.A).toBe(9);
 
     await act(async () => {
-      vi.advanceTimersByTime(50);
+      vi.advanceTimersByTime(RANDOM_UPDATE_INTERVAL_MS);
     });
     expect(latest.values.A).toBe(4);
 

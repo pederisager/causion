@@ -3,9 +3,9 @@
 // and tests while making it easier for beginners to discover available
 // examples.
 
-export const PRESET_MEDIATION = `Med = 0.5*A\nB = 0.5*Med`;
-export const PRESET_CONFOUNDING = `A = 0.5*Con\nB = 0.5*Con`;
-export const PRESET_COLLIDER = `Col = 0.5*A + 0.5*B`;
+export const PRESET_MEDIATION = `M = 0.5*A\nB = 0.5*M`;
+export const PRESET_CONFOUNDING = `A = 0.5*C\nB = 0.5*C`;
+export const PRESET_COLLIDER = `C = 0.5*A + 0.5*B`;
 
 export const PRESETS = [
   { key: "mediation", label: "Load Mediation", text: PRESET_MEDIATION },

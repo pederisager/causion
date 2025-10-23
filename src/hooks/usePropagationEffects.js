@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { computeValues, shallowEqualObj } from "../graph/math.js";
 import { scheduleEdgePulse, scheduleNodeDisplayUpdate, clearPendingTimers } from "../utils/timers.js";
 import { tri } from "../data/presets.js";
+import {
+  AUTO_SLIDE_PERIOD_SECONDS,
+  RANDOM_UPDATE_INTERVAL_MS,
+} from "../components/constants.js";
 
 const DEFAULT_RANGE = { min: -100, max: 100 };
 
@@ -93,7 +97,6 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
   const [interventions, setInterventions] = useState({});
   const [ranges, setRanges] = useState({});
   const [autoPlay, setAutoPlay] = useState({});
-  const [autoPeriod, setAutoPeriod] = useState({});
   const [autoStart, setAutoStart] = useState({});
   const [randomPlay, setRandomPlay] = useState({});
   const [dragging, setDragging] = useState({});
@@ -174,16 +177,6 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
       }
       return next;
     });
-    setAutoPeriod((prev) => {
-      const next = { ...prev };
-      ids.forEach((id) => {
-        if (next[id] == null) next[id] = 4;
-      });
-      for (const key of Object.keys(next)) {
-        if (!allVars.has(key)) delete next[key];
-      }
-      return next;
-    });
     setAutoStart((prev) => {
       const next = { ...prev };
       ids.forEach((id) => {
@@ -254,7 +247,7 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
       for (const id of allVars) {
         if (!autoPlay[id]) continue;
         const range = ranges[id] || DEFAULT_RANGE;
-        const period = Math.max(0.1, Number(autoPeriod[id] || 4));
+        const period = Math.max(0.1, Number(AUTO_SLIDE_PERIOD_SECONDS) || 0);
         const start = autoStart[id] || { t0: now, p0: 0 };
         const phase = ((now - start.t0) / (period * 1000) + start.p0) % 1;
         const y = tri(phase);
@@ -273,7 +266,7 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };
-  }, [autoPlay, autoPeriod, autoStart, ranges, allVars]);
+  }, [autoPlay, autoStart, ranges, allVars]);
 
   useEffect(() => {
     const last = lastValuesRef.current;
@@ -453,8 +446,7 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
           clearRandomTimer(id);
           return;
         }
-        const periodSec = Math.max(0.1, Number(autoPeriod[id] || 4));
-        const delay = Math.max(50, (periodSec * 1000) / 20);
+        const delay = Math.max(50, Number(RANDOM_UPDATE_INTERVAL_MS) || 0);
         const timer = setTimeout(() => {
           removePendingTimer(timer);
           randomTimersRef.current.delete(id);
@@ -480,7 +472,7 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
 
       tick();
     }
-  }, [randomPlay, autoPeriod, applyValue, clearRandomTimer, removePendingTimer]);
+  }, [randomPlay, applyValue, clearRandomTimer, removePendingTimer]);
 
   const handleRangeMinChange = useCallback(
     (id, raw) => {
@@ -598,11 +590,6 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
     [clearRandomTimer]
   );
 
-  const handleAutoPeriodChange = useCallback((id, raw) => {
-    const sec = Math.max(0.1, Number(raw) || 0.1);
-    setAutoPeriod((prev) => ({ ...prev, [id]: sec }));
-  }, []);
-
   const handleDragStart = useCallback((id) => {
     setDragging((prev) => ({ ...prev, [id]: true }));
   }, []);
@@ -618,7 +605,6 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
     ranges,
     autoPlay,
     randomPlay,
-    autoPeriod,
     dragging,
     edgeHot,
     toggleAutoPlay,
@@ -628,7 +614,6 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
     handleValueCommit,
     handleRangeMinChange,
     handleRangeMaxChange,
-    handleAutoPeriodChange,
     handleDragStart,
     handleDragEnd,
   };

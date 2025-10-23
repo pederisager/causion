@@ -170,15 +170,6 @@ export function createApp(overrides = {}) {
             className: "w-20 border rounded px-2 py-1",
             value: range.max,
             onChange: (e) => propagation.handleRangeMaxChange(id, Number(e.target.value)),
-          }),
-          h("span", { className: "text-xs ml-4 opacity-70" }, "period (s):"),
-          h("input", {
-            type: "number",
-            className: "w-20 border rounded px-2 py-1",
-            min: 0.1,
-            step: 0.1,
-            value: propagation.autoPeriod[id] ?? 4,
-            onChange: (e) => propagation.handleAutoPeriodChange(id, Number(e.target.value)),
           })
         )
       );
