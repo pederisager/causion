@@ -11,3 +11,4 @@ export const DEFAULT_FEATURE_FLAGS = {
   causalLagMs: 50,
   flowPulseMs: 900,
 };
+export const SCATTER_SAMPLE_INTERVAL_MS = 200;

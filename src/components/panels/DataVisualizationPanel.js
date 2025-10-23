@@ -5,7 +5,7 @@ import React, {
   useState,
 } from "react";
 
-const SAMPLE_INTERVAL_MS = 750;
+import { SCATTER_SAMPLE_INTERVAL_MS } from "../constants.js";
 
 function getDefaultAxes(options) {
   if (!options.length) {
@@ -235,7 +235,10 @@ export default function DataVisualizationPanel({ allVars, values }) {
       });
     };
 
-    intervalRef.current = setInterval(tick, SAMPLE_INTERVAL_MS);
+    intervalRef.current = setInterval(
+      tick,
+      SCATTER_SAMPLE_INTERVAL_MS
+    );
     tick();
 
     return () => {
