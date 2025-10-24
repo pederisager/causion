@@ -3,8 +3,8 @@
 This document captures how the refactored DAG visual simulator is wired together so new contributors can navigate the modules, trace data flow, and keep the four core invariants healthy.
 
 ## Module boundaries at a glance
-- **Graph parsing (`src/graph/`)** – `parseSCM` tokenises the SCM text, normalises coefficients, and guarantees every mentioned variable has a model entry so downstream hooks can rely on total coverage.【F:src/graph/parser.js†L1-L84】
-- **Dependency analysis (`src/graph/topology.js`)** – `depsFromModel` converts the parsed coefficients into parent sets, while `topoSort` validates the DAG ordering before React Flow ever renders nodes.【F:src/graph/topology.js†L1-L62】
+- **Graph parsing (`src/graph/`)** – `parseSCM` tokenises the SCM text with `jsep`, captures an AST plus dependency set for each assignment, and guarantees every mentioned variable has a model entry so downstream hooks can rely on total coverage.【F:src/graph/parser.js†L1-L113】
+- **Dependency analysis (`src/graph/topology.js`)** – `depsFromModel` converts each AST-backed node into parent sets, while `topoSort` validates the DAG ordering before React Flow ever renders nodes.【F:src/graph/topology.js†L1-L62】
 - **Stateful hooks (`src/hooks/`)** –
   - `useScmModel` owns the SCM text, reruns the parser/topology pipeline, and exposes a graph signature to trigger layout recalculation.【F:src/hooks/useScmModel.js†L1-L44】
   - `usePropagationEffects` drives value propagation, timers, clamps, autoplay, and marching-ants edge pulses from the parsed model.【F:src/hooks/usePropagationEffects.js†L1-L310】

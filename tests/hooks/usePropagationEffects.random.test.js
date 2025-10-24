@@ -4,6 +4,8 @@ import { render } from "@testing-library/react";
 import { act } from "react-dom/test-utils";
 import { usePropagationEffects } from "../../src/hooks/usePropagationEffects.js";
 import { RANDOM_UPDATE_INTERVAL_MS } from "../../src/components/constants.js";
+import { parseSCM } from "../../src/graph/parser.js";
+import { depsFromModel } from "../../src/graph/topology.js";
 
 function createHookHarness(onUpdate, featureOverrides = {}) {
   const baseFeatures = {
@@ -14,10 +16,12 @@ function createHookHarness(onUpdate, featureOverrides = {}) {
   };
 
   return function HookHarness() {
+    const { model, allVars } = parseSCM("A = 0");
+    const eqs = depsFromModel(model);
     const hook = usePropagationEffects({
-      model: new Map([["A", { parents: {}, constant: 0 }]]),
-      eqs: new Map([["A", new Set()]]),
-      allVars: new Set(["A"]),
+      model,
+      eqs,
+      allVars,
       features: { ...baseFeatures, ...featureOverrides },
     });
 

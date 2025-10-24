@@ -17,6 +17,7 @@
     "classnames": "^2.5.1",
     "d3": "^7.9.0",
     "framer-motion": "^12.23.24",
+    "jsep": "^1.4.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "reactflow": "^11.11.4",

@@ -1,9 +1,10 @@
 import { topoSort } from "./topology.js";
+import { evaluateExpression } from "./interpreter.js";
 
 /**
  * Propagate values across the DAG according to the provided SCM model.
  *
- * @param {Map<string, { parents: Record<string, number>, constant: number }>} model - Parsed SCM model.
+ * @param {Map<string, { ast: import("jsep").Expression | null, dependencies: Set<string> }>} model - Parsed SCM model.
  * @param {Map<string, Set<string>>} eqs - Dependency map derived from the model.
  * @param {Record<string, number>} currentValues - Current node values before propagation.
  * @param {Record<string, boolean>} clampMap - Nodes that should remain fixed.
@@ -12,16 +13,37 @@ import { topoSort } from "./topology.js";
 export function computeValues(model, eqs, currentValues, clampMap = {}) {
   const order = topoSort(eqs);
   const next = { ...currentValues };
+  const scope = new Proxy(next, {
+    has(target, key) {
+      if (typeof key === "symbol") return key in target;
+      return true;
+    },
+    get(target, key) {
+      if (typeof key === "symbol") {
+        return Reflect.get(target, key);
+      }
+      if (key === "error") return 0;
+      const value = target[key];
+      return value == null ? 0 : value;
+    },
+  });
 
   for (const node of order) {
-    if (clampMap[node]) continue;
-    const spec = model.get(node) || { parents: {}, constant: 0 };
-    const parents = spec.parents || {};
-    let sum = 0;
-    for (const [parent, coefficient] of Object.entries(parents)) {
-      sum += coefficient * (next[parent] ?? 0);
+    if (next[node] == null) {
+      next[node] = 0;
     }
-    next[node] = spec.constant + sum;
+    if (clampMap[node]) continue;
+    const spec = model.get(node);
+    if (!spec || !spec.ast) {
+      continue;
+    }
+    try {
+      next[node] = evaluateExpression(spec.ast, scope);
+    } catch (error) {
+      const message = error?.message || String(error);
+      const source = spec.source || "expression";
+      throw new Error(`Error evaluating ${node} = ${source}: ${message}`, { cause: error });
+    }
   }
 
   return next;

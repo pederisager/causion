@@ -2,7 +2,7 @@
  * Convert an SCM model map into adjacency information where each node points
  * to the set of its direct parent variables.
  *
- * @param {Map<string, { parents: Record<string, number> }>} model - Parsed SCM model.
+ * @param {Map<string, { dependencies: Set<string> }>} model - Parsed SCM model.
  * @returns {Map<string, Set<string>>} A map of variable -> set of parent variables.
  */
 export function depsFromModel(model) {
@@ -10,7 +10,7 @@ export function depsFromModel(model) {
   if (!model) return eqs;
 
   for (const [child, spec] of model) {
-    const parentKeys = spec?.parents ? Object.keys(spec.parents) : [];
+    const parentKeys = spec?.dependencies ? [...spec.dependencies] : [];
     eqs.set(child, new Set(parentKeys));
   }
 

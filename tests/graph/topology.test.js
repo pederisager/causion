@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { depsFromModel, topoSort } from "../../src/graph/topology.js";
 
 const MODEL = new Map([
-  ["A", { parents: {}, constant: 0 }],
-  ["B", { parents: { A: 1 }, constant: 0 }],
-  ["C", { parents: { B: 1 }, constant: 0 }],
+  ["A", { dependencies: new Set() }],
+  ["B", { dependencies: new Set(["A"]) }],
+  ["C", { dependencies: new Set(["B"]) }],
 ]);
 
 test("depsFromModel builds parent sets", () => {

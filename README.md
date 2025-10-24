@@ -16,8 +16,15 @@
 - **Teach** counterfactuals, mediation, and confounding with live visuals.
 - **Prototype** ideas quickly before formal modeling.
 
+## SCM expression syntax
+- Write each node as a JavaScript-style expression (`Y = 0.6 * X + sin(Z)`), not just linear combinations.
+- Supported operators: arithmetic (`+ - * / % ^`), comparisons (`< <= > >= == !=`), logical (`&& || !`), ternary (`condition ? a : b`).
+- Built-in helpers: `abs`, `sin`, `cos`, `log`, `exp`, plus constants `PI` and `E`.
+- Use the literal `error` to reserve a noise term (currently treated as `0`, ready for future stochastic hooks).
+- Any identifier you reference becomes a node automatically; define it explicitly if you want a deterministic baseline.
+
 ## Project status
-Causion is under active development. The focus is stability of the four core behaviors above while we expand testing and quality‑of‑life features.
+Causion is under active development. The focus is stability of the four core behaviors above while we expand testing and quality-of-life features.
 
 ## Directory structure (quick tour)
 Once the app is installed you will see these key folders:
