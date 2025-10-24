@@ -279,7 +279,7 @@ export function createApp(overrides = {}) {
       h(
         "div",
         { className: "flex items-center justify-between gap-4" },
-        h("h1", { className: "text-3xl font-extrabold" }, "Interactive DAG"),
+        h("h1", { className: "text-3xl font-extrabold" }, "Causion - simulate causality"),
         devToggleButton
       ),
       h(
