@@ -35,6 +35,9 @@ export function computeValues(model, eqs, currentValues, clampMap = {}) {
     if (clampMap[node]) continue;
     const spec = model.get(node);
     if (!spec || !spec.ast) {
+      if (spec?.derived) {
+        next[node] = 0;
+      }
       continue;
     }
     try {
