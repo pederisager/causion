@@ -199,9 +199,9 @@ export function createApp(overrides = {}) {
       h(
         "div",
         { className: "text-xs text-gray-600 mt-2" },
-        "Linear only. Example: ",
-        h("code", null, "Med = 0.5*A"),
-        ". Arrows point from RHS vars to LHS var."
+        "Use JavaScript-style expressions (nonlinear, trig, logical). Example: ",
+        h("code", null, "Med = 0.5 * A + sin(Z)"),
+        ". Arrows follow RHS → LHS automatically; helpers: abs/sin/cos/log/exp plus PI & E."
       ),
       error ? h("div", { className: "mt-2 text-sm text-red-700" }, error) : null
     );
