@@ -11,7 +11,7 @@
 | Install | `npm ci` (preferred) or `npm install`. |
 | Dev server | `npm run dev` (Vite, usually http://localhost:5173). Announce any custom port in the logs. |
 | Build | `npm run build`. |
-| Tests | `npm test` (Vitest). Add/maintain tests for every fix/feature. |
+| Tests | Prompt the user to run `npm test` (Vitest) or `npm run test:ci` and report results; agents cannot run Vitest in this sandbox. |
 | Language | **JavaScript only** for new code. Do not introduce TypeScript. |
 | UI stack | React + existing graph utilities; no heavy new deps without approval. |
 
@@ -20,11 +20,15 @@
 ## 2. Project overview
 Interactive **DAG visual simulation app** (React + Vite) demonstrating causal flow. Last tagged stable snapshot: **causion_app_v1.0** (2025‑10‑12).
 
-### Four invariants (must never regress)
-1. **Seeded causal lag propagation remains deterministic.**
-2. **Immediate source updates**: upstream node changes appear instantly.
-3. **Marching‑ants edge animation** stays active and visually consistent.
-4. **Ephemeral clamp on drag**: dragging a slider temporarily clamps; releasing returns value + color/label to baseline unless “do()” is selected.
+### Core invariants (must never regress)
+1. **Deterministic SCM parsing & layout** – The SCM editor → parser → topology pipeline must surface friendly errors, emit nodes/edges for every referenced identifier, and keep layouts stable (freeform preserves manual coordinates; grid layout regenerates deterministically from `graphSignature`).
+2. **Immediate + seeded propagation** – Local slider/number edits update the source display instantly while downstream nodes follow the seeded lag schedule (`features.causalLagMs`), producing reproducible timing and never skipping affected nodes.
+3. **Clamps, ranges & baselines** – Ephemeral drag clamps release on pointer up, reverting to baseline unless `do()` is enabled; explicit clamps persist values, and slider/number/range inputs stay synchronized while auto-correcting invalid min/max pairs.
+4. **Automation exclusivity** – Triangle‑wave auto slide and random play honor the current range, never run simultaneously for the same variable, and immediately relinquish control when a user clamps, intervenes, or commits a manual value.
+5. **Causal edge signaling** – Marching‑ants pulses remain active when causal flow is on, respect `flowPulseMs`, and degrade gracefully to static straight edges when disabled; anchor handles stay aligned so arrows attach to the closest cardinal face.
+6. **Data visualization sampling** – The floating scatter panel only records samples while “Visualize data” is active, wipes its buffer when axes change or inputs become invalid, and ignores NaN/non-changing pairs so plotted points reflect real propagation.
+
+_Whenever core functionality changes in a way that affects expected behavior, update this invariants list (and the related guidance in AGENTS.md) as part of the same work._
 
 If a change risks any invariant, stop, surface the concern, and mark the PR `needs-human-review`.
 
@@ -42,14 +46,14 @@ If a change risks any invariant, stop, surface the concern, and mark the PR `nee
 2. **Plan briefly**: list targeted files, risks, and intended tests before coding.
 3. **Implement minimal change**: avoid broad refactors; keep code novice-friendly with helpful inline comments for non-obvious logic.
 4. **Testing**:
-   - Run `npm test`.
+   - Request that the user runs `npm test` (or `npm run test:ci` for the full suite) and share the results—Vitest does not execute inside this sandbox.
    - Add or update Vitest + React Testing Library specs when behavior changes.
    - Maintain (or add) a smoke test ensuring the app mounts without errors.
   - For slider interactions, ensure tests cover drag → release → auto-unclamp, plus “do()” persistence.
 5. **Manual verification**:
    - `npm run dev`
    - Navigate to the affected UI
-   - Verify sliders, propagation, and marching-ants behaviors remain intact.
+   - Verify sliders, propagation, marching-ants, auto slide vs random play toggles, and the “Visualize data” scatter logger all behave as expected.
 6. **Self-check invariants** and document the confirmation in the PR.
 
 ---
@@ -76,13 +80,13 @@ If a change risks any invariant, stop, surface the concern, and mark the PR `nee
 5. **Testing**
    - Automated tests added/updated
    - Manual verification steps (detail the path in the UI)
-6. **Regression Guard**: explicitly confirm all four invariants above.
+6. **Regression Guard**: explicitly confirm all core invariants above.
 7. **Follow-ups**: TODOs, tech debt, or next steps.
 
 Tick the checklist items in the PR description:
-- [ ] `npm test` passes locally.
+- [ ] Requested the user to run `npm test` (or `npm run test:ci`) and recorded their results.
 - [ ] Dev server smoke-tested for the affected path.
-- [ ] No change to: seeded propagation / immediate updates / marching-ants / ephemeral clamp.
+- [ ] No change to any core invariants listed in Section 2.
 - [ ] New or updated tests cover the change.
 - [ ] No large dependency introduced without justification.
 
@@ -99,6 +103,7 @@ Tick the checklist items in the PR description:
 
 ## 7. Tests & quality bars
 - Vitest + React Testing Library are the default test stack; reuse utilities under `tests/` or `src/__tests__/`.
+- `npm run test:ci` runs the Vitest suite plus the extra Node-based specs listed in `package.json`; ask the user to run it when full coverage is required since Vitest cannot run in this sandbox.
 - Required regression test when modifying sliders: simulate drag + release and assert value/color reset (unless clamped).
 - Keep snapshot tests minimal; prefer assertion-based behavior tests.
 - For asynchronous animations (e.g., marching-ants), consider deterministic timers or helper utils if flakes appear—submit those helpers in a focused PR first.
@@ -107,14 +112,17 @@ Tick the checklist items in the PR description:
 
 ## 8. Repository structure (guide only)
 - `src/`
-  - `components/` — UI elements (sliders, nodes, controls)
-  - `graph/` — DAG data & propagation utilities
-  - `state/` — shared state helpers
-  - `styles/` — CSS/animation assets (marching-ants)
-- `tests/` or `src/__tests__/` — Vitest suites
-- `public/` — static assets
-- `docs/` — supplementary documentation
-- `package.json` — scripts & metadata
+  - `App.js` / `main.jsx` — app entry + React Flow wiring.
+  - `components/` — nodes, edges, DevPanel, slider stack, and the DataVisualizationPanel overlay.
+  - `hooks/` — `useScmModel`, `usePropagationEffects`, `useNodeGraph`, and supporting logic.
+  - `graph/` — SCM parsing, topology, and math helpers.
+  - `data/` — presets, waveform helpers, and other shared constants.
+  - `utils/` — timers, graph signature helpers, node/edge mutators.
+  - `assets/`, `theme.cjs`, `theme.css`, `App.css`, `index.css` — styling, theming, and static resources.
+- `tests/` — Vitest + Node suites plus `tests/setup/` for React Flow harnesses.
+- `public/` — static assets served by Vite.
+- `docs/` — supplementary documentation (architecture, testing, assets).
+- Root configs (`package.json`, `vite.config.js`, `vitest.config.js`, etc.) — scripts and tooling metadata.
 
 Update this document via a dedicated `docs:` PR if the structure materially changes.
 
@@ -137,8 +145,9 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci || npm install
-      - run: npm test
+      - run: npm run test:ci
 ```
+Because Vitest cannot run inside the Codex sandbox, agents must request that the user runs `npm run test:ci` locally whenever a CI-equivalent verification is required.
 
 ---
 
@@ -149,7 +158,7 @@ jobs:
 ---
 
 ## 11. When to escalate
-- Changes that touch DAG propagation internals or threaten the four invariants → open a draft PR and request human review early.
+- Changes that touch DAG propagation internals or threaten any core invariant → open a draft PR and request human review early.
 - If drag/drop timing proves flaky, propose deterministic test utilities in a separate preliminary PR before tackling the main change.
 
 ---
