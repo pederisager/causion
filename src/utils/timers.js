@@ -5,40 +5,42 @@
 export function scheduleNodeDisplayUpdate(nodeTimerMap, pendingTimers, nodeId, delay, updateFn) {
   let entry = nodeTimerMap.get(nodeId);
   if (!entry) {
-    entry = { timer: null, hasQueued: false, nextDelay: delay, latestUpdateFn: updateFn };
+    entry = new Map();
     nodeTimerMap.set(nodeId, entry);
-  } else {
-    entry.nextDelay = delay;
-    entry.latestUpdateFn = updateFn;
   }
 
-  if (entry.timer) {
-    entry.hasQueued = true;
-    return entry.timer;
+  let bucket = entry.get(delay);
+  if (!bucket) {
+    bucket = { timer: null, hasQueued: false, latestUpdateFn: updateFn };
+    entry.set(delay, bucket);
+  } else {
+    bucket.latestUpdateFn = updateFn;
+  }
+
+  if (bucket.timer) {
+    bucket.hasQueued = true;
+    return bucket.timer;
   }
 
   const timer = setTimeout(() => {
-    entry.latestUpdateFn();
+    bucket.latestUpdateFn();
     const index = pendingTimers.indexOf(timer);
     if (index !== -1) pendingTimers.splice(index, 1);
-    entry.timer = null;
+    bucket.timer = null;
 
-    if (entry.hasQueued) {
-      entry.hasQueued = false;
-      scheduleNodeDisplayUpdate(
-        nodeTimerMap,
-        pendingTimers,
-        nodeId,
-        entry.nextDelay,
-        entry.latestUpdateFn
-      );
+    if (bucket.hasQueued) {
+      bucket.hasQueued = false;
+      scheduleNodeDisplayUpdate(nodeTimerMap, pendingTimers, nodeId, delay, bucket.latestUpdateFn);
       return;
     }
 
-    nodeTimerMap.delete(nodeId);
+    entry.delete(delay);
+    if (entry.size === 0) {
+      nodeTimerMap.delete(nodeId);
+    }
   }, delay);
 
-  entry.timer = timer;
+  bucket.timer = timer;
   pendingTimers.push(timer);
   return timer;
 }
@@ -91,9 +93,12 @@ export function clearPendingTimers(pendingTimers, nodeTimerMap, edgeTimerMap) {
   pendingTimers.length = 0;
 
   nodeTimerMap.forEach((entry) => {
-    if (entry.timer) {
-      clearTimeout(entry.timer);
-    }
+    entry.forEach((bucket) => {
+      if (bucket.timer) {
+        clearTimeout(bucket.timer);
+      }
+      bucket.hasQueued = false;
+    });
   });
   nodeTimerMap.clear();
 
