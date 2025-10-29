@@ -13,7 +13,7 @@ export const DEFAULT_FEATURE_FLAGS = {
   stylePreset: "causion",
 };
 // Set sampling speed for "Visualize" scatterplot. 
-export const SCATTER_SAMPLE_INTERVAL_MS = 200;
+export const SCATTER_SAMPLE_INTERVAL_MS = 100;
 // Set speeds for auto slide and random value updates.
 export const AUTO_SLIDE_PERIOD_SECONDS = 4;
-export const RANDOM_UPDATE_INTERVAL_MS = 150;
+export const RANDOM_UPDATE_INTERVAL_MS = 100;
