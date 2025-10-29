@@ -1,4 +1,8 @@
-export function applyEdgeVisualState(edges, edgeHot, { causalFlow, flowPulseMs, edgeStraightening }) {
+export function applyEdgeVisualState(
+  edges,
+  edgeHot,
+  { causalFlow, flowPulseMs, edgeStraightening, stylePreset }
+) {
   if (!Array.isArray(edges) || edges.length === 0) {
     return edges;
   }
@@ -11,8 +15,14 @@ export function applyEdgeVisualState(edges, edgeHot, { causalFlow, flowPulseMs, 
       ...prevData,
       hot: nextHot,
       pulseMs: flowPulseMs,
+      stylePreset,
     };
-    if (edge.type === baseType && prevData.hot === nextHot && prevData.pulseMs === flowPulseMs) {
+    if (
+      edge.type === baseType &&
+      prevData.hot === nextHot &&
+      prevData.pulseMs === flowPulseMs &&
+      prevData.stylePreset === stylePreset
+    ) {
       return edge;
     }
     mutated = true;

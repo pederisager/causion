@@ -7,6 +7,14 @@ import React, {
 
 import { SCATTER_SAMPLE_INTERVAL_MS } from "../constants.js";
 
+function detectThemePreset(explicitPreset) {
+  if (explicitPreset) return explicitPreset;
+  if (typeof document === "undefined") return "minimal";
+  const body = document.body;
+  if (!body) return "minimal";
+  return body.classList.contains("theme-causion") ? "causion" : "minimal";
+}
+
 function getDefaultAxes(options) {
   if (!options.length) {
     return { x: "", y: "" };
@@ -30,12 +38,17 @@ function normalizeDomain([min, max]) {
   return [min - pad, max + pad];
 }
 
-function ScatterPlot({ samples, xLabel, yLabel }) {
+function ScatterPlot({ samples, xLabel, yLabel, themePreset }) {
   const width = 260;
   const height = 200;
   const margin = { top: 16, right: 16, bottom: 36, left: 44 };
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
+  const isCausion = themePreset === "causion";
+  const panelFill = isCausion ? "rgba(72, 106, 124, 0.08)" : "rgba(15, 118, 110, 0.05)";
+  const axisColor = isCausion ? "var(--color-ink-line)" : "#0f172a";
+  const pointFill = isCausion ? "var(--color-ink-line)" : "#0ea5e9";
+  const pointStroke = isCausion ? "var(--color-bg-panel)" : "white";
 
   const xs = samples.map((sample) => sample.x);
   const ys = samples.map((sample) => sample.y);
@@ -69,30 +82,36 @@ function ScatterPlot({ samples, xLabel, yLabel }) {
   return React.createElement(
     "div",
     { className: "w-full" },
-    React.createElement(
-      "svg",
-      {
-        role: "img",
-        "aria-label": samples.length
-          ? `Scatterplot of ${xLabel} versus ${yLabel}`
-          : "Empty scatterplot",
-        width,
-        height,
-        className: "rounded border bg-white",
-      },
+      React.createElement(
+        "svg",
+        {
+          role: "img",
+          "aria-label": samples.length
+            ? `Scatterplot of ${xLabel} versus ${yLabel}`
+            : "Empty scatterplot",
+          width,
+          height,
+          className: isCausion ? "rounded border" : "rounded border bg-white",
+          style: isCausion
+            ? {
+                backgroundColor: "var(--color-bg-panel)",
+                borderColor: "var(--color-ink-border)",
+              }
+            : undefined,
+        },
       React.createElement("rect", {
         x: margin.left,
         y: margin.top,
         width: innerWidth,
         height: innerHeight,
-        fill: "rgba(15, 118, 110, 0.05)",
+        fill: panelFill,
       }),
       React.createElement("line", {
         x1: margin.left,
         y1: margin.top + innerHeight,
         x2: margin.left + innerWidth,
         y2: margin.top + innerHeight,
-        stroke: "#0f172a",
+        stroke: axisColor,
         strokeWidth: 1,
       }),
       React.createElement("line", {
@@ -100,7 +119,7 @@ function ScatterPlot({ samples, xLabel, yLabel }) {
         y1: margin.top,
         x2: margin.left,
         y2: margin.top + innerHeight,
-        stroke: "#0f172a",
+        stroke: axisColor,
         strokeWidth: 1,
       }),
       samples.map((sample) =>
@@ -109,8 +128,8 @@ function ScatterPlot({ samples, xLabel, yLabel }) {
           cx: scaleX(sample.x),
           cy: scaleY(sample.y),
           r: 4,
-          fill: "#0ea5e9",
-          stroke: "white",
+          fill: pointFill,
+          stroke: pointStroke,
           strokeWidth: 1,
         })
       ),
@@ -120,7 +139,10 @@ function ScatterPlot({ samples, xLabel, yLabel }) {
           x: margin.left + innerWidth / 2,
           y: height - 8,
           textAnchor: "middle",
-          className: "text-xs fill-slate-600",
+          fill: axisColor,
+          style: isCausion
+            ? { fontFamily: "var(--font-body)", fontSize: "0.7rem", letterSpacing: "0.08em" }
+            : undefined,
         },
         xLabel || "Select X variable"
       ),
@@ -131,7 +153,10 @@ function ScatterPlot({ samples, xLabel, yLabel }) {
           y: margin.top + innerHeight / 2,
           textAnchor: "middle",
           transform: `rotate(-90 12 ${margin.top + innerHeight / 2})`,
-          className: "text-xs fill-slate-600",
+          fill: axisColor,
+          style: isCausion
+            ? { fontFamily: "var(--font-body)", fontSize: "0.7rem", letterSpacing: "0.08em" }
+            : undefined,
         },
         yLabel || "Select Y variable"
       )
@@ -146,7 +171,10 @@ function ScatterPlot({ samples, xLabel, yLabel }) {
   );
 }
 
-export default function DataVisualizationPanel({ allVars, values }) {
+export default function DataVisualizationPanel({ allVars, values, themePreset }) {
+  const resolvedTheme = detectThemePreset(themePreset);
+  const isCausion = resolvedTheme === "causion";
+  const joinClasses = (...classes) => classes.filter(Boolean).join(" ");
   const options = useMemo(() => {
     return Array.from(allVars || []).sort();
   }, [allVars]);
@@ -266,11 +294,33 @@ export default function DataVisualizationPanel({ allVars, values }) {
     setAxes((prev) => ({ ...prev, [axisKey]: nextValue }));
   };
 
+  const visualizeBtnClass = joinClasses(
+    isCausion
+      ? isActive
+        ? "btn-primary text-sm"
+        : "btn-outline text-sm"
+      : "px-3 py-1 text-sm font-medium rounded border",
+    !hasVariables && !isCausion && "opacity-50 cursor-not-allowed"
+  );
+
+  const clearBtnClass = joinClasses(
+    isCausion ? "btn-outline text-xs" : "px-2 py-1 text-xs rounded border border-slate-300",
+    samples.length === 0 && !isCausion && "opacity-50 cursor-not-allowed"
+  );
+
+  const helperTextStyle = isCausion
+    ? { color: "var(--color-text-muted)", fontFamily: "var(--font-body)" }
+    : undefined;
+
   return React.createElement(
     "div",
     {
-      className:
-        "absolute bottom-4 right-4 w-[280px] bg-white/95 backdrop-blur rounded-xl shadow-lg border border-slate-200 p-4 flex flex-col gap-3",
+      className: joinClasses(
+        "absolute bottom-4 right-4 w-[280px] flex flex-col gap-3",
+        isCausion
+          ? "causion-panel causion-overlay p-4"
+          : "bg-white/95 backdrop-blur rounded-xl shadow-lg border border-slate-200 p-4"
+      ),
     },
     React.createElement(
       "div",
@@ -279,9 +329,7 @@ export default function DataVisualizationPanel({ allVars, values }) {
         "button",
         {
           type: "button",
-          className:
-            "px-3 py-1 text-sm font-medium rounded border " +
-            (isActive ? "bg-emerald-500 text-white border-emerald-600" : "border-slate-300"),
+          className: visualizeBtnClass,
           onClick: () => setIsActive((prev) => !prev),
           "aria-pressed": isActive,
           disabled: !hasVariables,
@@ -292,7 +340,7 @@ export default function DataVisualizationPanel({ allVars, values }) {
         "button",
         {
           type: "button",
-          className: "px-2 py-1 text-xs rounded border border-slate-300",
+          className: clearBtnClass,
           onClick: handleClear,
           disabled: samples.length === 0,
         },
@@ -316,7 +364,7 @@ export default function DataVisualizationPanel({ allVars, values }) {
                   {
                     value: x,
                     onChange: handleAxisChange("x"),
-                    className: "border rounded px-2 py-1 text-sm",
+                    className: isCausion ? "causion-field text-sm" : "border rounded px-2 py-1 text-sm",
                   },
                   options.map((option) =>
                     React.createElement(
@@ -336,7 +384,7 @@ export default function DataVisualizationPanel({ allVars, values }) {
                   {
                     value: y,
                     onChange: handleAxisChange("y"),
-                    className: "border rounded px-2 py-1 text-sm",
+                    className: isCausion ? "causion-field text-sm" : "border rounded px-2 py-1 text-sm",
                   },
                   options.map((option) =>
                     React.createElement(
@@ -350,23 +398,33 @@ export default function DataVisualizationPanel({ allVars, values }) {
             ),
             React.createElement(
               "p",
-              { className: "text-xs text-slate-500" },
+              {
+                className: joinClasses("text-xs", isCausion ? "" : "text-slate-500"),
+                style: helperTextStyle,
+              },
               "Points update when either tracked variable changes."
             ),
             React.createElement(ScatterPlot, {
               samples,
               xLabel: x,
               yLabel: y,
+              themePreset: resolvedTheme,
             })
           )
         : React.createElement(
             "p",
-            { className: "text-xs text-slate-500" },
+            {
+              className: joinClasses("text-xs", isCausion ? "" : "text-slate-500"),
+              style: helperTextStyle,
+            },
             "No variables available to visualize."
           )
       : React.createElement(
           "p",
-          { className: "text-xs text-slate-500" },
+          {
+            className: joinClasses("text-xs", isCausion ? "" : "text-slate-500"),
+            style: helperTextStyle,
+          },
           "Turn on visualization to log paired values over time."
         )
   );

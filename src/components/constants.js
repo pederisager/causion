@@ -10,6 +10,7 @@ export const DEFAULT_FEATURE_FLAGS = {
   causalFlow: true,
   causalLagMs: 50,
   flowPulseMs: 900,
+  stylePreset: "causion",
 };
 // Set sampling speed for "Visualize" scatterplot. 
 export const SCATTER_SAMPLE_INTERVAL_MS = 200;

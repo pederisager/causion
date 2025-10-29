@@ -1,0 +1,108 @@
+CAUSION Theme — Refined Minimal Edition
+
+Concept
+Subtle “retro-scientific” look: light cream paper, graphite ink, soft drafting blue and restrained rust accents. Clean, calm, and legible; vintage influence without ornament.
+
+Core Colors
+
+Background (paper): #FBF9F4
+
+Panel (paper soft): #F5F2E8
+
+Grid line (draw at ~8–10% opacity): #E2DECE
+
+Borders/dividers: #C9C2AE
+
+Text primary (graphite): #2D2823
+
+Text secondary: #5E584F
+
+Heading accent (rust): #A55A33
+
+Interactive blue: #486A7C
+
+Success: #4E8152
+
+Error: #B04A3C
+
+Node Diverging Scale
+
+Negative (low): #89A7B5 (muted steel blue)
+
+Neutral (zero): #FBF9F4 (use outline only)
+
+Positive (high): #C97C5C (desaturated clay red)
+
+Always keep a graphite outline (#2D2823, 1.5px).
+
+On hover/focus: subtle brass halo #C3AA74 @ 25% opacity.
+
+Typography
+
+Headings: Playfair Display, 600, small letter-spacing (+0.5%), rust color.
+
+UI labels: IBM Plex Sans 400–500, graphite.
+
+Numeric/data: IBM Plex Mono 500, graphite.
+
+Layout & Density
+
+Spacious white space; panels with 0.5–0.75rem radius.
+
+Canvas grid 32px; grid and texture extremely subtle.
+
+Avoid heavy shadows; depth via contrast and spacing.
+
+Nodes
+
+Double-ring look (outer graphite border; inner color fill).
+
+Centered mono label; auto choose label color for contrast.
+
+Selected: outline thickens slightly; optional dashed construction halo.
+
+Edges
+
+Thin graphite lines (1.5–2px) with open arrowheads.
+
+Hover: +15% contrast; optional 200ms trace animation.
+
+Reduce crossings where possible; no glows.
+
+Sliders
+
+Flat ruler track with light ticks; circular graphite thumb.
+
+Active track can use drafting blue.
+
+Snap points at 0, ±0.5, ±1 (optional).
+
+Buttons
+
+Default: outline only; flat hover (slightly darker border).
+
+Primary: drafting blue fill, off-white label; still quiet.
+
+Data Viz
+
+Axes graphite; points drafting blue.
+
+Active axis labels can gently switch to rust.
+
+Texture
+
+Single paper grain on the root only (2–4% opacity).
+
+No vignette. No heavy gradients.
+
+Motion
+
+Quiet: 150–250ms fades/traces only. Respect reduced-motion.
+
+Accessibility
+
+4.5:1 contrast minimum on text.
+
+Optional color-blind ramp (blue→gold) behind a toggle.
+
+High-contrast mode: thicker lines & darker text.

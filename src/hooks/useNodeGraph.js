@@ -172,7 +172,16 @@ export function useNodeGraph({
             mutated = true;
           }
           if (!node.data) {
-            node = { ...node, data: { id, value: 0, min: -100, max: 100 } };
+            node = {
+              ...node,
+              data: { id, value: 0, min: -100, max: 100, stylePreset: features.stylePreset },
+            };
+            mutated = true;
+          } else if (node.data.stylePreset !== features.stylePreset) {
+            node = {
+              ...node,
+              data: { ...node.data, stylePreset: features.stylePreset },
+            };
             mutated = true;
           }
           return node;
@@ -183,17 +192,17 @@ export function useNodeGraph({
           id,
           type: "circle",
           position: desiredPosition,
-          data: { id, value: 0, min: -100, max: 100 },
+          data: { id, value: 0, min: -100, max: 100, stylePreset: features.stylePreset },
           draggable: true,
         };
       });
       return mutated ? next : prev;
     });
-  }, [eqs, allVars, features.layoutFreeform, setNodes]);
+  }, [eqs, allVars, features.layoutFreeform, features.stylePreset, setNodes]);
 
   useEffect(() => {
-    setNodes((prev) => applyNodeData(prev, displayValues, ranges));
-  }, [displayValues, ranges, setNodes]);
+    setNodes((prev) => applyNodeData(prev, displayValues, ranges, features.stylePreset));
+  }, [displayValues, ranges, features.stylePreset, setNodes]);
 
   const baseEdgeType = features.causalFlow
     ? "causal"
@@ -259,8 +268,21 @@ export function useNodeGraph({
               mutated = true;
             }
             if (!edge.data) {
-              edge = { ...edge, data: { hot: false, pulseMs: features.flowPulseMs } };
+              edge = { ...edge, data: { hot: false, pulseMs: features.flowPulseMs, stylePreset: features.stylePreset } };
               mutated = true;
+            } else {
+              const nextData = {
+                ...edge.data,
+                pulseMs: features.flowPulseMs,
+                stylePreset: features.stylePreset,
+              };
+              if (
+                edge.data.pulseMs !== nextData.pulseMs ||
+                edge.data.stylePreset !== nextData.stylePreset
+              ) {
+                edge = { ...edge, data: nextData };
+                mutated = true;
+              }
             }
             next.push(edge);
           } else {
@@ -272,7 +294,7 @@ export function useNodeGraph({
               sourceHandle,
               targetHandle,
               type: baseEdgeType,
-              data: { hot: false, pulseMs: features.flowPulseMs },
+              data: { hot: false, pulseMs: features.flowPulseMs, stylePreset: features.stylePreset },
               style: desiredStyle,
               markerEnd: desiredMarker,
             });
@@ -283,7 +305,7 @@ export function useNodeGraph({
       if (!mutated && next.length !== prev.length) mutated = true;
       return mutated ? next : prev;
     });
-  }, [eqs, features.anchorHandles, baseEdgeType, nodePositionSignature, setEdges, features.flowPulseMs]);
+  }, [eqs, features.anchorHandles, baseEdgeType, nodePositionSignature, setEdges, features.flowPulseMs, features.stylePreset]);
 
   useEffect(() => {
     setEdges((prev) =>
@@ -291,9 +313,10 @@ export function useNodeGraph({
         causalFlow: features.causalFlow,
         flowPulseMs: features.flowPulseMs,
         edgeStraightening: features.edgeStraightening,
+        stylePreset: features.stylePreset,
       })
     );
-  }, [edgeHot, features.causalFlow, features.flowPulseMs, features.edgeStraightening, setEdges]);
+  }, [edgeHot, features.causalFlow, features.flowPulseMs, features.edgeStraightening, features.stylePreset, setEdges]);
 
   useEffect(() => {
     if (!reactFlow) return;

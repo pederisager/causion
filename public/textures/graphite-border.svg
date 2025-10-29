@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <defs>
+    <filter id="noisy" x="0" y="0" width="1" height="1">
+      <feTurbulence type="fractalNoise" baseFrequency="1.2" numOctaves="2" seed="12"/>
+      <feColorMatrix type="matrix" values="0.3 0 0 0 0  0 0.3 0 0 0  0 0 0.3 0 0  0 0 0 1 0"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.45"/>
+      </feComponentTransfer>
+    </filter>
+  </defs>
+  <rect width="16" height="16" fill="#2f2a24" opacity="0.55"/>
+  <rect width="16" height="16" fill="#3a342d" opacity="0.4" filter="url(#noisy)"/>
+</svg>

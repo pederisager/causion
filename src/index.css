@@ -9,5 +9,10 @@ body,
 }
 
 body {
+  margin: 0;
+  font-family: var(--font-body, "Inter", ui-sans-serif, system-ui, -apple-system);
+}
+
+body.theme-minimal {
   @apply bg-slate-100 text-slate-900;
 }

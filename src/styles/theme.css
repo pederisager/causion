@@ -1,0 +1,300 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500&display=swap");
+
+body.theme-causion {
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-heading: "IBM Plex Sans Condensed", "IBM Plex Sans", system-ui, sans-serif;
+
+  --color-bg: #fbf9f4;
+  --color-bg-panel: #f5f2e8;
+  --color-text: #2d2823;
+  --color-text-muted: #5e584f;
+  --color-heading: #a55a33;
+  --color-ink-line: #3f3a34;
+  --color-ink-border: #c9c2ae;
+  --color-grid: #e2dece;
+
+  --color-node-pos: #c97c5c;
+  --color-node-neg: #89a7b5;
+  --color-node-neutral: #fbf9f4;
+  --color-brass: #c3aa74;
+  --color-success: #4e8152;
+  --color-error: #b04a3c;
+
+  --paper-grain-opacity: 0.03; /* 0.02–0.04 recommended */
+
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+}
+
+body.theme-causion::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: var(--tw-gradient-to), url("/textures/paper-grain.png");
+  background-size: cover;
+  opacity: var(--paper-grain-opacity);
+  pointer-events: none;
+}
+
+body.theme-causion #root {
+  min-height: 100%;
+}
+
+/* Panels */
+body.theme-causion .causion-panel,
+body.theme-causion .causion-canvas,
+body.theme-causion .causion-field,
+body.theme-causion .btn-outline,
+body.theme-causion .btn-primary {
+  border: 1px solid transparent;
+  border-image: url('/textures/graphite-border.svg') 2 / 1px stretch;
+  border-color: transparent;
+  box-shadow: inset 0 0 0 0.5px rgba(47, 41, 35, 0.25);
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.02));
+}
+
+body.theme-causion .causion-panel {
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-ink-border);
+  border-radius: 0.75rem;
+  box-shadow: inset 0 0 0 1px rgba(201, 194, 174, 0.6);
+  color: var(--color-text);
+}
+
+/* Canvas grid (render with SVG if possible; this is a safe fallback) */
+body.theme-causion .causion-grid {
+  background-image:
+    linear-gradient(to right, rgba(226, 222, 206, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(226, 222, 206, 0.1) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Nodes */
+body.theme-causion .causion-node {
+  --ring: var(--color-ink-line);
+  --fill: var(--color-node-neutral);
+  border-radius: 9999px;
+  border: 1.5px solid var(--ring);
+  background: var(--fill);
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.02);
+  transition: background-color 250ms ease, box-shadow 150ms ease,
+    border-color 150ms ease;
+  font-family: var(--font-mono);
+  color: var(--color-text);
+}
+
+body.theme-causion .causion-node:hover,
+body.theme-causion .causion-node:focus {
+  box-shadow:
+    0 0 0 2px rgba(195, 170, 116, 0.25),
+    inset 0 0 0 2px rgba(0, 0, 0, 0.02);
+  border-color: var(--color-ink-line);
+}
+
+/* Node value mapping (9 steps; interpolate in code if you prefer) */
+body.theme-causion .node-v--4 {
+  --fill: #6e98ab;
+}
+body.theme-causion .node-v--3 {
+  --fill: #7ca1b0;
+}
+body.theme-causion .node-v--2 {
+  --fill: #85a6b4;
+}
+body.theme-causion .node-v--1 {
+  --fill: #8eacb8;
+}
+body.theme-causion .node-v-0 {
+  --fill: var(--color-node-neutral);
+}
+body.theme-causion .node-v-1 {
+  --fill: #c5896d;
+}
+body.theme-causion .node-v-2 {
+  --fill: #c6715a;
+}
+body.theme-causion .node-v-3 {
+  --fill: #c66852;
+}
+body.theme-causion .node-v-4 {
+  --fill: #c45e4a;
+}
+
+/* Edges (SVG strokes recommended) */
+body.theme-causion .graphite-line {
+  stroke: url('/textures/graphite-hatch.svg');
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+}
+
+body.theme-causion .causion-edge {
+
+  stroke: var(--color-ink-line);
+  stroke-width: 1.5px;
+}
+
+/* Open arrowhead (SVG path style suggestion) */
+body.theme-causion .causion-arrowhead {
+  fill: none;
+  stroke: var(--color-ink-line);
+  stroke-width: 1.5px;
+}
+
+/* Sliders (ruler style) */
+body.theme-causion [data-causion-slider] {
+  --track: var(--color-ink-border);
+  --active: #486a7c;
+  color: var(--color-text);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+body.theme-causion [data-causion-slider] input[type="range"] {
+  width: 100%;
+  appearance: none;
+  height: 2px;
+  background: var(--track);
+}
+
+body.theme-causion [data-causion-slider] input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: var(--color-ink-line);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+}
+
+body.theme-causion [data-causion-slider] input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: var(--color-ink-line);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+}
+
+body.theme-causion [data-causion-slider] .ticks {
+  background-image: linear-gradient(to right, var(--track) 1px, transparent 1px);
+  background-size: 10% 2px;
+  height: 2px;
+  opacity: 0.6;
+}
+
+/* Buttons (outline; flat) */
+body.theme-causion .btn-outline {
+  border: 1px solid var(--color-ink-border);
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.7rem;
+  font-weight: 500;
+  color: var(--color-text);
+  background: transparent;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+body.theme-causion .btn-outline:hover {
+  border-color: #b9b199;
+  background-color: rgba(201, 194, 174, 0.15);
+}
+
+body.theme-causion .btn-primary {
+  background: #486a7c;
+  color: #fbf9f4;
+  border: 1px solid #3f5b6a;
+}
+
+body.theme-causion .btn-primary:hover {
+  background: #3e5e70;
+}
+
+/* Headings */
+body.theme-causion .h-heading {
+  font-family: var(--font-heading);
+  color: var(--color-heading);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+body.theme-causion .causion-app {
+  font-family: var(--font-body);
+  width: 100%;
+}
+
+body.theme-causion .causion-canvas {
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-ink-border);
+  background: var(--color-bg-panel);
+  box-shadow: inset 0 0 0 1px rgba(201, 194, 174, 0.35);
+}
+
+body.theme-causion .causion-overlay {
+  backdrop-filter: blur(6px);
+  background-color: rgba(251, 249, 244, 0.92);
+  box-shadow: 0 16px 32px rgba(47, 41, 35, 0.08);
+}
+
+body.theme-causion .causion-field {
+  background: var(--color-node-neutral);
+  border: 1px solid var(--color-ink-border);
+  border-radius: 0.6rem;
+  padding: 0.45rem 0.75rem;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+body.theme-causion .causion-field:focus {
+  outline: none;
+  border-color: var(--color-ink-line);
+  box-shadow: 0 0 0 2px rgba(195, 170, 116, 0.25);
+  background: var(--color-bg);
+}
+
+body.theme-causion .causion-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-ink-line);
+}
+
+body.theme-causion .causion-label {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+
+body.theme-causion .btn-outline.is-active {
+  border-color: #486a7c;
+  color: #486a7c;
+  background-color: rgba(72, 106, 124, 0.12);
+}
+
+body.theme-causion .btn-outline.is-random {
+  border-color: rgba(165, 90, 51, 0.35);
+  color: var(--color-heading);
+}
+
+body.theme-causion .btn-outline.is-random.is-active {
+  border-color: var(--color-heading);
+  background-color: rgba(165, 90, 51, 0.14);
+}
+
+body.theme-causion .btn-outline:disabled,
+body.theme-causion .btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+body.theme-causion .causion-slider__range::-webkit-slider-runnable-track,
+body.theme-causion .causion-slider__range::-moz-range-track {
+  height: 2px;
+  background: transparent;
+}
+
+body.theme-causion .causion-slider__range {
+  border-radius: 9999px;
+  background: var(--track);
+}
