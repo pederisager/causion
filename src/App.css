@@ -40,3 +40,41 @@
 .read-the-docs {
   color: #888;
 }
+
+.edge-label {
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+  paint-order: stroke fill;
+  stroke-linejoin: round;
+  stroke-width: 3px;
+  letter-spacing: 0.02em;
+  fill: currentColor;
+}
+
+.edge-label--minimal {
+  color: #111;
+  stroke: #ffffff;
+}
+
+.edge-label--causion {
+  color: var(--color-ink-line);
+  stroke: var(--color-bg);
+}
+
+.edge-label--hot {
+  font-weight: 700;
+  stroke-width: 3.6px;
+}
+
+.edge-label__bg {
+  fill: var(--dag-canvas-bg, #ffffff);
+}
+
+.edge-label__bg--minimal {
+  fill: var(--dag-canvas-bg, #f8fafc);
+}
+
+.edge-label__bg--causion {
+  fill: var(--dag-canvas-bg, #fbf9f4);
+}

@@ -6,6 +6,7 @@ import {
 } from "reactflow";
 import { applyNodeData } from "../utils/nodeUtils.js";
 import { applyEdgeVisualState } from "../utils/edgeUtils.js";
+import { deriveEffectLabel } from "../utils/effectLabels.js";
 import {
   NODE_HEIGHT,
   NODE_SEPARATION,
@@ -113,6 +114,7 @@ export function useNodeGraph({
   eqs,
   allVars,
   features,
+  model,
   displayValues,
   ranges,
   edgeHot,
@@ -238,6 +240,8 @@ export function useNodeGraph({
           const id = `${parent}->${child}`;
           const desiredMarker = { type: MarkerType.ArrowClosed, width: 30, height: 30, color: "#111" };
           const desiredStyle = { strokeWidth: 2, stroke: "#111" };
+          const rawLabel = features.edgeEffectLabels && model ? deriveEffectLabel(model, parent, child) : "";
+          const trimmedLabel = typeof rawLabel === "string" ? rawLabel.trim() : "";
           const prevEdge = prevMap.get(id);
           if (prevEdge) {
             let edge = prevEdge;
@@ -268,7 +272,15 @@ export function useNodeGraph({
               mutated = true;
             }
             if (!edge.data) {
-              edge = { ...edge, data: { hot: false, pulseMs: features.flowPulseMs, stylePreset: features.stylePreset } };
+              const nextData = {
+                hot: false,
+                pulseMs: features.flowPulseMs,
+                stylePreset: features.stylePreset,
+              };
+              if (trimmedLabel) {
+                nextData.effectLabel = trimmedLabel;
+              }
+              edge = { ...edge, data: nextData };
               mutated = true;
             } else {
               const nextData = {
@@ -276,9 +288,15 @@ export function useNodeGraph({
                 pulseMs: features.flowPulseMs,
                 stylePreset: features.stylePreset,
               };
+              if (trimmedLabel) {
+                nextData.effectLabel = trimmedLabel;
+              } else if (nextData.effectLabel) {
+                delete nextData.effectLabel;
+              }
               if (
                 edge.data.pulseMs !== nextData.pulseMs ||
-                edge.data.stylePreset !== nextData.stylePreset
+                edge.data.stylePreset !== nextData.stylePreset ||
+                edge.data.effectLabel !== nextData.effectLabel
               ) {
                 edge = { ...edge, data: nextData };
                 mutated = true;
@@ -294,7 +312,12 @@ export function useNodeGraph({
               sourceHandle,
               targetHandle,
               type: baseEdgeType,
-              data: { hot: false, pulseMs: features.flowPulseMs, stylePreset: features.stylePreset },
+              data: {
+                hot: false,
+                pulseMs: features.flowPulseMs,
+                stylePreset: features.stylePreset,
+                ...(trimmedLabel ? { effectLabel: trimmedLabel } : {}),
+              },
               style: desiredStyle,
               markerEnd: desiredMarker,
             });
@@ -305,7 +328,7 @@ export function useNodeGraph({
       if (!mutated && next.length !== prev.length) mutated = true;
       return mutated ? next : prev;
     });
-  }, [eqs, features.anchorHandles, baseEdgeType, nodePositionSignature, setEdges, features.flowPulseMs, features.stylePreset]);
+  }, [eqs, features.anchorHandles, baseEdgeType, nodePositionSignature, setEdges, features.flowPulseMs, features.stylePreset, features.edgeEffectLabels, model]);
 
   useEffect(() => {
     setEdges((prev) =>

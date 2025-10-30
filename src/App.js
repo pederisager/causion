@@ -85,6 +85,7 @@ export function createApp(overrides = {}) {
       eqs,
       allVars,
       features,
+      model,
       displayValues: propagation.displayValues,
       ranges: propagation.ranges,
       edgeHot: propagation.edgeHot,
@@ -564,6 +565,24 @@ export function createApp(overrides = {}) {
       isDevPanelVisible ? "Hide dev panel" : "Show dev panel"
     );
 
+    const edgeLabelToggleButton = h(
+      "button",
+      {
+        type: "button",
+        className: joinClasses(
+          isCausion ? "btn-outline text-sm" : "px-3 py-1 rounded border shadow-sm text-sm",
+          isCausion && features.edgeEffectLabels && "is-active"
+        ),
+        onClick: () =>
+          setFeatures((previous) => ({
+            ...previous,
+            edgeEffectLabels: !previous.edgeEffectLabels,
+          })),
+        "aria-pressed": features.edgeEffectLabels,
+      },
+      features.edgeEffectLabels ? "Hide edge formulas" : "Show edge formulas"
+    );
+
     return h(
       "div",
       {
@@ -572,24 +591,29 @@ export function createApp(overrides = {}) {
           isCausion && "causion-app"
         ),
       },
-      h(
-        "div",
-        {
-          className: joinClasses(
-            "flex items-center justify-between gap-4",
-            isCausion && "pb-2 border-b"
-          ),
-          style: isCausion ? { borderColor: "var(--color-ink-border)" } : undefined,
-        },
         h(
-          "h1",
+          "div",
           {
-            className: isCausion ? "h-heading text-3xl" : "text-3xl font-extrabold",
+            className: joinClasses(
+              "flex items-center justify-between gap-4",
+              isCausion && "pb-2 border-b"
+            ),
+            style: isCausion ? { borderColor: "var(--color-ink-border)" } : undefined,
           },
-          "Causion – simulate causality"
+          h(
+            "h1",
+            {
+              className: isCausion ? "h-heading text-3xl" : "text-3xl font-extrabold",
+            },
+            "Causion – simulate causality"
+          ),
+          h(
+            "div",
+            { className: "flex items-center gap-2" },
+            edgeLabelToggleButton,
+            devToggleButton
+          )
         ),
-        devToggleButton
-      ),
       h(
         "div",
         {
