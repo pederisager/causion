@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SCM Function Cheat Sheet</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --page-bg: #f8f7f2;
+        --page-text: #111827;
+        --surface-bg: #ffffff;
+        --surface-text: #111827;
+        --muted-text: #334155;
+        --border-strong: rgba(15, 23, 42, 0.2);
+        --border-soft: rgba(15, 23, 42, 0.12);
+        --shadow-soft: rgba(15, 23, 42, 0.08);
+        --shadow-strong: rgba(15, 23, 42, 0.18);
+        --code-bg: #e2e8f0;
+        --code-text: #0b1120;
+        --pre-bg: #e5e7eb;
+        --pre-text: #0b1120;
+        --link-color: #1f4edb;
+        --table-header-bg: #e5e7eb;
+        --table-row-bg: rgba(255, 255, 255, 0.98);
+        --table-row-alt-bg: #f1f5f9;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --page-bg: #0b1220;
+          --page-text: #f8fafc;
+          --surface-bg: #1f2937;
+          --surface-text: #f8fafc;
+          --muted-text: #e2e8f0;
+          --border-strong: rgba(148, 163, 184, 0.45);
+          --border-soft: rgba(148, 163, 184, 0.25);
+          --shadow-soft: rgba(15, 23, 42, 0.45);
+          --shadow-strong: rgba(15, 23, 42, 0.65);
+          --code-bg: rgba(148, 163, 184, 0.22);
+          --code-text: #ffffff;
+          --pre-bg: rgba(30, 41, 59, 0.9);
+          --pre-text: #f8fafc;
+          --link-color: #9dd2ff;
+          --table-header-bg: rgba(51, 65, 85, 0.9);
+          --table-row-bg: rgba(30, 41, 59, 0.92);
+          --table-row-alt-bg: rgba(55, 65, 81, 0.88);
+        }
+      }
+      body {
+        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        margin: 0;
+        padding: 0;
+        line-height: 1.64;
+        color: var(--page-text);
+        background: var(--page-bg);
+      }
+      .container {
+        max-width: 820px;
+        margin: 0 auto;
+        padding: 2.5rem 1.5rem 3rem;
+      }
+      header {
+        margin-bottom: 2rem;
+      }
+      h1,
+      h2,
+      h3 {
+        line-height: 1.2;
+        font-weight: 600;
+        color: var(--surface-text);
+      }
+      h1 {
+        font-size: 2.4rem;
+        margin-bottom: 0.25rem;
+      }
+      h2 {
+        font-size: 1.6rem;
+        margin-top: 2.25rem;
+      }
+      h3 {
+        font-size: 1.2rem;
+        margin-top: 1.5rem;
+      }
+      p {
+        margin: 0.65rem 0;
+        color: var(--muted-text);
+      }
+      code {
+        font-family: "Fira Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        font-size: 0.94em;
+        background: var(--code-bg);
+        color: var(--code-text);
+        padding: 0.18rem 0.38rem;
+        border-radius: 0.35rem;
+        font-weight: 600;
+      }
+      pre {
+        margin: 1rem 0;
+        padding: 1rem 1.1rem;
+        background: var(--pre-bg);
+        border-radius: 0.75rem;
+        overflow-x: auto;
+        border: 1px solid var(--border-strong);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        color: var(--pre-text);
+        font-weight: 600;
+      }
+      pre code {
+        padding: 0;
+        background: none;
+        font-size: 0.92em;
+        color: inherit;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1rem 0;
+        border: 1px solid var(--border-strong);
+        border-radius: 0.7rem;
+        overflow: hidden;
+        background: var(--surface-bg);
+        color: var(--surface-text);
+        box-shadow: 0 12px 24px var(--shadow-soft);
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 0.6rem;
+        border-bottom: 1px solid var(--border-soft);
+        color: var(--surface-text);
+        vertical-align: top;
+      }
+      th {
+        background: var(--table-header-bg);
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
+      tbody tr:nth-child(even) {
+        background: var(--table-row-alt-bg);
+      }
+      tbody tr:nth-child(odd) {
+        background: var(--table-row-bg);
+      }
+      .card {
+        background: var(--surface-bg);
+        border: 1px solid var(--border-strong);
+        border-radius: 1rem;
+        padding: 1.4rem 1.6rem;
+        margin-top: 1.5rem;
+        box-shadow:
+          0 16px 28px var(--shadow-soft),
+          0 4px 10px var(--shadow-strong);
+        color: var(--surface-text);
+      }
+      .card h3 {
+        margin-top: 0;
+        color: var(--surface-text);
+        font-size: 1.18rem;
+      }
+      .card p,
+      .card li {
+        color: var(--muted-text);
+      }
+      ul {
+        margin: 0.5rem 0 0.5rem 1.25rem;
+        padding: 0;
+      }
+      li {
+        margin: 0.35rem 0;
+        color: var(--muted-text);
+      }
+      a {
+        color: var(--link-color);
+        text-decoration: none;
+        font-weight: 600;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      strong {
+        font-weight: 600;
+        color: var(--surface-text);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>SCM Function Cheat Sheet</h1>
+        <p>
+          Use this quick guide whenever you write equations in the Structural
+          Causal Model (SCM) editor. Every line should look like
+          <code>Variable = expression</code>. The variable on the left becomes
+          a node; every name on the right becomes one of its parents.
+        </p>
+      </header>
+
+      <section>
+        <h2>Foundations</h2>
+        <div class="card">
+          <h3>Equation anatomy</h3>
+          <pre><code>A = 1.2 * B + C
+B = sin(T) + U^2
+T = 0.5
+U = exp(-0.4 * Z)</code></pre>
+          <ul>
+            <li>
+              Lines are processed top to bottom, but the graph can be in any
+              order. Identifiers are case sensitive.
+            </li>
+            <li>Leave blank lines between equations for readability.</li>
+            <li>
+              Use decimals for fractions (<code>0.25</code>), or divide
+              (<code>1 / 4</code>).
+            </li>
+            <li>
+              For comments or notes, use a separate document—the parser expects
+              only equations.
+            </li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3>Operators you can use</h3>
+          <ul>
+            <li><code>+</code> addition, <code>-</code> subtraction</li>
+            <li><code>*</code> multiplication, <code>/</code> division</li>
+            <li><code>^</code> exponent (for example <code>X ^ 2</code>)</li>
+            <li>
+              Parentheses for grouping:
+              <code>0.4 * (A + B)</code>
+            </li>
+            <li>
+              Conditional logic with the ternary:
+              <code>condition ? valueIfTrue : valueIfFalse</code>
+            </li>
+            <li>
+              Logical checks with <code>&amp;&amp;</code>, <code>||</code>, and
+              comparisons like <code>&gt;</code>, <code>&lt;=</code>, etc.
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section>
+        <h2>Built-in helpers</h2>
+        <p>
+          These are the functions you can call directly. They use radians for
+          angles and natural logarithms.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Function</th>
+              <th>Meaning</th>
+              <th>Example</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>abs(x)</code></td>
+              <td>Absolute value</td>
+              <td><code>Error = abs(Target - Output)</code></td>
+            </tr>
+            <tr>
+              <td><code>sin(x)</code></td>
+              <td>Sine (radians)</td>
+              <td><code>Season = 2 * sin(Time)</code></td>
+            </tr>
+            <tr>
+              <td><code>cos(x)</code></td>
+              <td>Cosine (radians)</td>
+              <td><code>Cycle = cos(Time / 12 * PI)</code></td>
+            </tr>
+            <tr>
+              <td><code>log(x)</code></td>
+              <td>Natural logarithm</td>
+              <td><code>Growth = log(Base + Adjustment)</code></td>
+            </tr>
+            <tr>
+              <td><code>exp(x)</code></td>
+              <td>e to the power of x</td>
+              <td><code>Y = exp(0.3 * X)</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Constants: <code>PI</code>, <code>E</code>.
+        </p>
+      </section>
+
+      <section>
+        <h2>Troubleshooting tips</h2>
+        <ul>
+          <li>
+            If you see a parse error, check for missing parentheses or a misspelled
+            variable.
+          </li>
+          <li>
+            Every variable may appear only once on the left-hand side. Rename
+            duplicates like <code>Y_stage1</code>, <code>Y_stage2</code>, etc.
+          </li>
+          <li>
+            Use small decimals (for example <code>0.0001</code>) instead of
+            dividing by zero, and prefer <code>exp</code> over very large powers
+            to avoid overflow.
+          </li>
+        </ul>
+        <p>
+          Need more examples or have a request? Drop an issue in the <a href="https://github.com/pederisager/causion" target="_blank">Causion Github repository</a>
+          so I can extend this guide.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

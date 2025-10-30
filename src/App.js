@@ -10,6 +10,7 @@ import CircleNode from "./components/nodes/CircleNode.js";
 import CausalEdge from "./components/edges/CausalEdge.js";
 import DevPanel from "./components/panels/DevPanel.js";
 import DataVisualizationPanel from "./components/panels/DataVisualizationPanel.js";
+import CheatSheetModal from "./components/panels/CheatSheetModal.jsx";
 import { DEFAULT_FEATURE_FLAGS } from "./components/constants.js";
 import { PRESETS } from "./data/presets.js";
 import { useScmModel } from "./hooks/useScmModel.js";
@@ -30,6 +31,8 @@ const defaultFlowBridge = {
   useReactFlow,
 };
 
+const SCM_CHEATSHEET_URL = "/scm-function-cheatsheet.html";
+
 export function createApp(overrides = {}) {
   const bridge = { ...defaultFlowBridge, ...overrides };
   const {
@@ -46,6 +49,7 @@ export function createApp(overrides = {}) {
     const reactFlow = useFlowHook();
     const [features, setFeatures] = useState(defaultFeatures);
     const [isDevPanelVisible, setIsDevPanelVisible] = useState(false);
+    const [isCheatSheetOpen, setIsCheatSheetOpen] = useState(false);
     const joinClasses = (...classes) => classes.filter(Boolean).join(" ");
     const themePreset = features.stylePreset === "minimal" ? "minimal" : "causion";
     const isCausion = themePreset === "causion";
@@ -433,9 +437,51 @@ export function createApp(overrides = {}) {
             ? { color: "var(--color-text-muted)" }
             : undefined,
         },
-        "Use JavaScript-style expressions (nonlinear, trig, logical). Example: ",
-        h("code", null, "Med = 0.5 * A + sin(Z)"),
-        ". Arrows follow RHS → LHS automatically; helpers: abs/sin/cos/log/exp plus PI & E."
+        h(
+          "p",
+          null,
+          "Write one equation per line using the format ",
+          h("code", null, "Variable = expression"),
+          ". Each variable name on the left creates a child node and every identifier on the right creates a parent."
+        ),
+        h(
+          "p",
+          { className: "mt-1" },
+          "Expressions support basic math (+ − × ÷), exponentiation with ",
+          h("code", null, "^"),
+          ", parentheses, and conditional logic. Built-in helpers include ",
+          h("code", null, "abs"),
+          ", ",
+          h("code", null, "sin"),
+          ", ",
+          h("code", null, "cos"),
+          ", ",
+          h("code", null, "log"),
+          ", ",
+          h("code", null, "exp"),
+          ", plus constants ",
+          h("code", null, "PI"),
+          " and ",
+          h("code", null, "E.")
+        ),
+        h(
+          "p",
+          { className: "mt-1" },
+          "Need a gentle walkthrough? ",
+          h(
+            "button",
+            {
+              type: "button",
+              className: joinClasses(
+                "cheatsheet-trigger",
+                isCausion ? "cheatsheet-trigger--causion" : "cheatsheet-trigger--minimal"
+              ),
+              onClick: () => setIsCheatSheetOpen(true),
+            },
+            "Open the cheat sheet"
+          ),
+          " for beginner-friendly patterns and common recipes."
+        )
       ),
       error
         ? h(
@@ -591,29 +637,29 @@ export function createApp(overrides = {}) {
           isCausion && "causion-app"
         ),
       },
+      h(
+        "div",
+        {
+          className: joinClasses(
+            "flex items-center justify-between gap-4",
+            isCausion && "pb-2 border-b"
+          ),
+          style: isCausion ? { borderColor: "var(--color-ink-border)" } : undefined,
+        },
+        h(
+          "h1",
+          {
+            className: isCausion ? "h-heading text-3xl" : "text-3xl font-extrabold",
+          },
+          "Causion – simulate causality"
+        ),
         h(
           "div",
-          {
-            className: joinClasses(
-              "flex items-center justify-between gap-4",
-              isCausion && "pb-2 border-b"
-            ),
-            style: isCausion ? { borderColor: "var(--color-ink-border)" } : undefined,
-          },
-          h(
-            "h1",
-            {
-              className: isCausion ? "h-heading text-3xl" : "text-3xl font-extrabold",
-            },
-            "Causion – simulate causality"
-          ),
-          h(
-            "div",
-            { className: "flex items-center gap-2" },
-            edgeLabelToggleButton,
-            devToggleButton
-          )
-        ),
+          { className: "flex items-center gap-2" },
+          edgeLabelToggleButton,
+          devToggleButton
+        )
+      ),
       h(
         "div",
         {
@@ -624,7 +670,12 @@ export function createApp(overrides = {}) {
         },
         leftColumn,
         rightColumn
-      )
+      ),
+      h(CheatSheetModal, {
+        isOpen: isCheatSheetOpen,
+        onClose: () => setIsCheatSheetOpen(false),
+        cheatSheetUrl: SCM_CHEATSHEET_URL,
+      })
     );
   }
 

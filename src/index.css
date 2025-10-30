@@ -17,3 +17,208 @@ body.theme-minimal {
   --dag-canvas-bg: #f8fafc;
   @apply bg-slate-100 text-slate-900;
 }
+
+.cheatsheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  --cheatsheet-overlay-padding: clamp(1.25rem, 4vw, 2.75rem);
+  padding: var(--cheatsheet-overlay-padding);
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+}
+
+.cheatsheet-dialog {
+  width: min(960px, 100%);
+  max-height: calc(100vh - 2 * var(--cheatsheet-overlay-padding, 2rem));
+  height: min(96vh, calc(100vh - 2 * var(--cheatsheet-overlay-padding, 2rem)));
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow:
+    0 28px 48px rgba(15, 23, 42, 0.24),
+    0 4px 16px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+}
+
+body.theme-causion .cheatsheet-dialog {
+  background: var(--color-bg-panel);
+  border-color: rgba(64, 55, 44, 0.28);
+  box-shadow:
+    0 28px 54px rgba(47, 41, 35, 0.28),
+    0 4px 16px rgba(47, 41, 35, 0.18);
+}
+
+.cheatsheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+body.theme-causion .cheatsheet-header {
+  border-bottom-color: rgba(64, 55, 44, 0.25);
+}
+
+.cheatsheet-heading {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.cheatsheet-close {
+  background: transparent;
+  border: none;
+  font-size: 1.75rem;
+  line-height: 1;
+  padding: 0.1rem 0.35rem;
+  cursor: pointer;
+  color: inherit;
+  border-radius: 0.4rem;
+}
+
+.cheatsheet-close:hover {
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.cheatsheet-close:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+body.theme-causion .cheatsheet-close:hover {
+  background: rgba(64, 55, 44, 0.12);
+}
+
+.cheatsheet-body {
+  flex: 1;
+  min-height: 0;
+  background: inherit;
+}
+
+.cheatsheet-iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #ffffff;
+}
+
+.cheatsheet-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.25rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(248, 250, 252, 0.8);
+}
+
+body.theme-causion .cheatsheet-footer {
+  border-top-color: rgba(64, 55, 44, 0.25);
+  background: rgba(245, 242, 232, 0.85);
+}
+
+.cheatsheet-external-link {
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cheatsheet-external-link:hover {
+  text-decoration: underline;
+}
+
+body.theme-causion .cheatsheet-external-link {
+  color: var(--color-heading);
+}
+
+.cheatsheet-dismiss {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #f8fafc;
+  color: inherit;
+  font-weight: 500;
+  padding: 0.45rem 1rem;
+  border-radius: 0.55rem;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.cheatsheet-dismiss:hover {
+  background: #e2e8f0;
+}
+
+.cheatsheet-dismiss:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+body.theme-causion .cheatsheet-dismiss {
+  border-color: rgba(64, 55, 44, 0.25);
+  background: var(--color-bg);
+}
+
+body.theme-causion .cheatsheet-dismiss:hover {
+  background: var(--color-bg-panel);
+}
+
+body.theme-causion .cheatsheet-dismiss:focus-visible {
+  outline-color: var(--color-heading);
+}
+
+.cheatsheet-trigger {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+}
+
+.cheatsheet-trigger:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.cheatsheet-trigger--minimal {
+  color: #2563eb;
+}
+
+.cheatsheet-trigger--minimal:hover {
+  text-decoration-thickness: 2px;
+}
+
+.cheatsheet-trigger--causion {
+  color: var(--color-heading);
+}
+
+.cheatsheet-trigger--causion:hover {
+  text-decoration-thickness: 2px;
+}
+
+@media (max-width: 768px) {
+  .cheatsheet-overlay {
+    --cheatsheet-overlay-padding: 1rem;
+  }
+
+  .cheatsheet-dialog {
+    height: calc(100vh - 2rem);
+    max-height: calc(100vh - 2rem);
+  }
+
+  .cheatsheet-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cheatsheet-external-link {
+    text-align: center;
+  }
+}
