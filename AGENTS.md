@@ -22,7 +22,7 @@ Interactive **DAG visual simulation app** (React + Vite) demonstrating causal fl
 
 ### Core invariants (must never regress)
 1. **Deterministic SCM parsing & layout** – The SCM editor → parser → topology pipeline must surface friendly errors, emit nodes/edges for every referenced identifier, and keep layouts stable (freeform preserves manual coordinates; grid layout regenerates deterministically from `graphSignature`).
-2. **Immediate + seeded propagation** – Local slider/number edits update the source display instantly while downstream nodes follow the seeded lag schedule (`features.causalLagMs`), producing reproducible timing and never skipping affected nodes.
+2. **Manual apply + seeded propagation** – SCM draft edits stay isolated until the brass "Apply Changes" button commits them, after which local slider/number edits still update the source display instantly while downstream nodes follow the seeded lag schedule (`features.causalLagMs`) so timing stays reproducible and no affected node is skipped.
 3. **Clamps, ranges & baselines** – Ephemeral drag clamps release on pointer up, reverting to baseline unless `do()` is enabled; explicit clamps persist values, and slider/number/range inputs stay synchronized while auto-correcting invalid min/max pairs.
 4. **Automation exclusivity** – Triangle‑wave auto slide and random play honor the current range, never run simultaneously for the same variable, and immediately relinquish control when a user clamps, intervenes, or commits a manual value.
 5. **Causal edge signaling** – Marching‑ants pulses remain active when causal flow is on, respect `flowPulseMs`, and degrade gracefully to static straight edges when disabled; anchor handles stay aligned so arrows attach to the closest cardinal face.

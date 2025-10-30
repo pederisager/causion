@@ -62,7 +62,17 @@ export function createApp(overrides = {}) {
     }, [isCausion]);
 
     const defaultPreset = PRESETS[0]?.text ?? "";
-    const { scmText, setScmText, error, model, eqs, allVars, graphSignature } = useScmModel(defaultPreset);
+    const {
+      scmText,
+      setScmText,
+      applyScmChanges,
+      hasPendingChanges,
+      error,
+      model,
+      eqs,
+      allVars,
+      graphSignature,
+    } = useScmModel(defaultPreset);
 
     const propagation = usePropagationEffects({
       model,
@@ -369,6 +379,48 @@ export function createApp(overrides = {}) {
         value: scmText,
         onChange: (e) => setScmText(e.target.value),
       }),
+      h(
+        "div",
+        {
+          className: joinClasses(
+            "mt-3 flex items-center gap-3",
+            isCausion ? "justify-start" : ""
+          ),
+        },
+        h(
+          "button",
+          {
+            type: "button",
+            className: joinClasses(
+              "px-4 py-2 rounded-md font-semibold text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 transition-colors",
+              isCausion ? "uppercase tracking-[0.12em]" : "",
+              hasPendingChanges ? "" : "opacity-60 cursor-not-allowed"
+            ),
+            style: isCausion
+              ? {
+                  background: hasPendingChanges
+                    ? "linear-gradient(135deg, #f8d77b 10%, #d8a632 55%, #b8860b 100%)"
+                    : "#d1c49a",
+                  color: "#1f1402",
+                  border: "1px solid rgba(138, 101, 9, 0.8)",
+                  boxShadow: hasPendingChanges
+                    ? "0 2px 6px rgba(68, 48, 4, 0.25)"
+                    : "none",
+                }
+              : {
+                  backgroundColor: hasPendingChanges ? "#d4a017" : "#c9b27a",
+                  color: "#1f1402",
+                  border: "1px solid rgba(138, 101, 9, 0.6)",
+                },
+            disabled: !hasPendingChanges,
+            onClick: () => {
+              if (!hasPendingChanges) return;
+              applyScmChanges();
+            },
+          },
+          "Apply changes"
+        )
+      ),
       h(
         "div",
         {
