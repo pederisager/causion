@@ -262,6 +262,48 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
     prevInterventionsRef.current = { ...interventions };
   }, [interventions]);
 
+  useEffect(() => {
+    const activeTargets = Object.entries(interventions || {})
+      .filter(([, active]) => !!active)
+      .map(([id]) => id);
+    if (activeTargets.length === 0) return;
+    const activeSet = new Set(activeTargets);
+
+    const edgeIdsToClear = [];
+    edgeTimersRef.current.forEach((entry, edgeId) => {
+      const target = edgeId.split("->")[1];
+      if (target && activeSet.has(target)) {
+        entry.timers.forEach((pair) => {
+          clearTimeout(pair.on);
+          clearTimeout(pair.off);
+          const pending = pendingTimersRef.current;
+          const onIndex = pending.indexOf(pair.on);
+          if (onIndex !== -1) pending.splice(onIndex, 1);
+          const offIndex = pending.indexOf(pair.off);
+          if (offIndex !== -1) pending.splice(offIndex, 1);
+        });
+        edgeIdsToClear.push(edgeId);
+      }
+    });
+
+    if (edgeIdsToClear.length) {
+      edgeIdsToClear.forEach((edgeId) => {
+        edgeTimersRef.current.delete(edgeId);
+      });
+      setEdgeHot((prev) => {
+        let mutated = false;
+        const next = { ...prev };
+        edgeIdsToClear.forEach((edgeId) => {
+          if (next[edgeId]) {
+            next[edgeId] = false;
+            mutated = true;
+          }
+        });
+        return mutated ? next : prev;
+      });
+    }
+  }, [interventions]);
+
   const activeClamp = useMemo(
     () => buildActiveClampMap(allVars, interventions, autoPlay, randomPlay, dragging, features),
     [allVars, interventions, autoPlay, randomPlay, dragging, features]
@@ -364,14 +406,16 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
       );
 
       const edgeId = `${step.parent}->${step.node}`;
-      scheduleEdgePulse(
-        edgeTimersRef.current,
-        pendingTimersRef.current,
-        edgeId,
-        step.delay,
-        pulseMs,
-        setEdgeHot
-      );
+      if (!interventions[step.node]) {
+        scheduleEdgePulse(
+          edgeTimersRef.current,
+          pendingTimersRef.current,
+          edgeId,
+          step.delay,
+          pulseMs,
+          setEdgeHot
+        );
+      }
     }
   }, [
     values,

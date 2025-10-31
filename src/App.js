@@ -92,6 +92,7 @@ export function createApp(overrides = {}) {
       model,
       displayValues: propagation.displayValues,
       ranges: propagation.ranges,
+      interventions: propagation.interventions,
       edgeHot: propagation.edgeHot,
       graphSignature,
       reactFlow,

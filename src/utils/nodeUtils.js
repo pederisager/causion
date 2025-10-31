@@ -1,4 +1,4 @@
-export function applyNodeData(nodes, displayValues, ranges, stylePreset) {
+export function applyNodeData(nodes, displayValues, ranges, stylePreset, interventions) {
   if (!Array.isArray(nodes) || nodes.length === 0) {
     return nodes;
   }
@@ -14,13 +14,15 @@ export function applyNodeData(nodes, displayValues, ranges, stylePreset) {
       min: range.min,
       max: range.max,
       stylePreset,
+      doActive: !!interventions?.[node.id],
     };
     if (
       currentData.value === nextValue &&
       currentData.min === range.min &&
       currentData.max === range.max &&
       currentData.id === node.id &&
-      currentData.stylePreset === stylePreset
+      currentData.stylePreset === stylePreset &&
+      !!currentData.doActive === !!nextData.doActive
     ) {
       return node;
     }

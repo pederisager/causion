@@ -77,7 +77,7 @@ function computeCausionFill(value, min, max) {
 }
 
 export default function CircleNode({ data }) {
-  const { id, value, min = -100, max = 100, stylePreset } = data || {};
+  const { id, value, min = -100, max = 100, stylePreset, doActive } = data || {};
   const themePreset = getThemePreset(stylePreset);
   const rangeScale = Math.max(Math.abs(min), Math.abs(max));
 
@@ -115,16 +115,18 @@ export default function CircleNode({ data }) {
     textOverflow: "ellipsis",
   };
 
-  let containerStyle = { ...containerBaseStyle };
+  let containerStyle = { ...containerBaseStyle, position: "relative" };
   let containerClassName;
 
   if (themePreset === "causion") {
     const { fill, intensity, polarity } = computeCausionFill(value, min, max);
+    const baseInset = `inset 0 0 0 ${0.6 + intensity * 1.6}px rgba(0,0,0,0.08)`;
+    const haloOuter = doActive ? ", 0 0 0 3px rgba(63,58,52,0.18)" : "";
     containerStyle = {
       ...containerStyle,
       background: fill,
       border: "2px solid #1f1a17",
-      boxShadow: `inset 0 0 0 ${0.6 + intensity * 1.6}px rgba(0,0,0,0.08)`,
+      boxShadow: baseInset + haloOuter,
     };
     labelStyle.color = polarity < 0 ? "#3b2621" : "var(--color-text)";
     containerClassName = "causion-node";
@@ -133,15 +135,44 @@ export default function CircleNode({ data }) {
       ...containerStyle,
       background: valueToColorMinimal(value, rangeScale),
       border: "3px solid #111",
-      boxShadow: "0 10px 24px rgba(0,0,0,0.15)",
+      boxShadow: `0 10px 24px rgba(0,0,0,0.15)${doActive ? ", 0 0 0 3px rgba(17,17,17,0.18)" : ""}`,
       fontWeight: 800,
       fontSize: 22,
     };
   }
 
+  const badge = doActive
+    ? React.createElement(
+        "div",
+        {
+          "aria-label": "do() intervention",
+          title: "do() intervention",
+          style: {
+            position: "absolute",
+            top: 6,
+            left: "50%",
+            transform: "translateX(-50%)",
+            padding: themePreset === "causion" ? "1px 10px 2px" : "1px 10px 2px",
+            borderRadius: 12,
+            fontSize: 10,
+            letterSpacing: themePreset === "causion" ? "0.08em" : 0,
+            fontFamily: themePreset === "causion" ? "var(--font-mono)" : "sans-serif",
+            background: themePreset === "causion" ? "var(--color-bg-panel)" : "rgba(248,250,252,0.95)",
+            border: themePreset === "causion" ? "1px solid var(--color-ink-border)" : "1px solid rgba(17,17,17,0.1)",
+            color: themePreset === "causion" ? "var(--color-text-muted)" : "#4b5563",
+            boxShadow: themePreset === "causion" ? "inset 0 0 0 0.5px rgba(47,41,35,0.12)" : "0 1px 2px rgba(17,17,17,0.08)",
+            pointerEvents: "none",
+            whiteSpace: "nowrap",
+          },
+        },
+        "do()"
+      )
+    : null;
+
   return React.createElement(
     "div",
     { className: containerClassName, style: containerStyle },
+    badge,
     React.createElement("div", { style: labelStyle }, id),
     React.createElement("div", { style: valueStyle }, Number(value ?? 0).toFixed(2)),
     React.createElement(Handle, {

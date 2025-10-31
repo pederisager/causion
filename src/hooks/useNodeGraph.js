@@ -117,6 +117,7 @@ export function useNodeGraph({
   model,
   displayValues,
   ranges,
+  interventions,
   edgeHot,
   graphSignature,
   reactFlow,
@@ -203,8 +204,8 @@ export function useNodeGraph({
   }, [eqs, allVars, features.layoutFreeform, features.stylePreset, setNodes]);
 
   useEffect(() => {
-    setNodes((prev) => applyNodeData(prev, displayValues, ranges, features.stylePreset));
-  }, [displayValues, ranges, features.stylePreset, setNodes]);
+    setNodes((prev) => applyNodeData(prev, displayValues, ranges, features.stylePreset, interventions));
+  }, [displayValues, ranges, features.stylePreset, interventions, setNodes]);
 
   const baseEdgeType = features.causalFlow
     ? "causal"
@@ -276,6 +277,7 @@ export function useNodeGraph({
                 hot: false,
                 pulseMs: features.flowPulseMs,
                 stylePreset: features.stylePreset,
+                disabledByDo: !!interventions?.[child],
               };
               if (trimmedLabel) {
                 nextData.effectLabel = trimmedLabel;
@@ -287,6 +289,7 @@ export function useNodeGraph({
                 ...edge.data,
                 pulseMs: features.flowPulseMs,
                 stylePreset: features.stylePreset,
+                disabledByDo: !!interventions?.[child],
               };
               if (trimmedLabel) {
                 nextData.effectLabel = trimmedLabel;
@@ -296,7 +299,8 @@ export function useNodeGraph({
               if (
                 edge.data.pulseMs !== nextData.pulseMs ||
                 edge.data.stylePreset !== nextData.stylePreset ||
-                edge.data.effectLabel !== nextData.effectLabel
+                edge.data.effectLabel !== nextData.effectLabel ||
+                edge.data.disabledByDo !== nextData.disabledByDo
               ) {
                 edge = { ...edge, data: nextData };
                 mutated = true;
@@ -316,6 +320,7 @@ export function useNodeGraph({
                 hot: false,
                 pulseMs: features.flowPulseMs,
                 stylePreset: features.stylePreset,
+                disabledByDo: !!interventions?.[child],
                 ...(trimmedLabel ? { effectLabel: trimmedLabel } : {}),
               },
               style: desiredStyle,
@@ -328,7 +333,7 @@ export function useNodeGraph({
       if (!mutated && next.length !== prev.length) mutated = true;
       return mutated ? next : prev;
     });
-  }, [eqs, features.anchorHandles, baseEdgeType, nodePositionSignature, setEdges, features.flowPulseMs, features.stylePreset, features.edgeEffectLabels, model]);
+  }, [eqs, features.anchorHandles, baseEdgeType, nodePositionSignature, setEdges, features.flowPulseMs, features.stylePreset, features.edgeEffectLabels, model, interventions]);
 
   useEffect(() => {
     setEdges((prev) =>

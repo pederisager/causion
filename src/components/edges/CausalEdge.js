@@ -8,6 +8,9 @@ function getThemePreset() {
   return body.classList.contains("theme-causion") ? "causion" : "minimal";
 }
 
+const DISABLED_STROKE_OPACITY = 0.38;
+const DISABLED_MARKER_OPACITY = 0.2;
+
 export default function CausalEdge({
   id,
   sourceX,
@@ -17,23 +20,34 @@ export default function CausalEdge({
   data,
 }) {
   const [edgePath, labelX, labelY] = getStraightPath({ sourceX, sourceY, targetX, targetY });
-  const hot = Boolean(data?.hot);
+  const disabledByDo = Boolean(data?.disabledByDo);
+  const hot = disabledByDo ? false : Boolean(data?.hot);
   const pulseMs = Math.max(100, Number(data?.pulseMs ?? 800));
   const animationSeconds = Math.max(0.3, pulseMs / 800);
   const themePreset = data?.stylePreset ? data.stylePreset : getThemePreset();
   const label = typeof data?.effectLabel === "string" ? data.effectLabel.trim() : "";
 
-  const strokeColor = themePreset === "causion" ? "var(--color-ink-line)" : "#111";
+  const strokeColor = (() => {
+    if (disabledByDo) {
+      return themePreset === "causion" ? "var(--color-ink-border)" : "#cbd5e1";
+    }
+    return themePreset === "causion" ? "var(--color-ink-line)" : "#111";
+  })();
   const chilledStroke = themePreset === "causion" ? 1.6 : 2;
   const hotStroke = themePreset === "causion" ? 2.4 : 3;
 
-  const baseClass = themePreset === "causion" ? "causion-edge graphite-line" : undefined;
+  const baseClass = disabledByDo
+    ? undefined
+    : themePreset === "causion"
+    ? "causion-edge graphite-line"
+    : undefined;
   const basePath = React.createElement("path", {
     d: edgePath,
     fill: "none",
     stroke: strokeColor,
     strokeWidth: hot ? hotStroke : chilledStroke,
     className: baseClass,
+    opacity: disabledByDo ? DISABLED_STROKE_OPACITY : 1,
   });
 
   const marchingAnts =
@@ -69,6 +83,7 @@ export default function CausalEdge({
             stroke: strokeColor,
             strokeWidth: 1.5,
             strokeLinecap: "round",
+            opacity: disabledByDo ? DISABLED_MARKER_OPACITY : 1,
           })
         )
       : React.createElement(
@@ -82,7 +97,11 @@ export default function CausalEdge({
             orient: "auto",
             markerUnits: "strokeWidth",
           },
-          React.createElement("path", { d: "M0,0 L0,6 L9,3 z", fill: "#111" })
+          React.createElement("path", {
+            d: "M0,0 L0,6 L9,3 z",
+            fill: disabledByDo ? "#cbd5e1" : "#111",
+            opacity: disabledByDo ? DISABLED_MARKER_OPACITY : 1,
+          })
         );
 
   const defs = React.createElement("defs", null, marker);
