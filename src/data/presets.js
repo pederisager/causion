@@ -6,11 +6,13 @@
 export const PRESET_MEDIATION = `M = 0.5*A\nB = 0.5*M`;
 export const PRESET_CONFOUNDING = `A = 0.5*C\nB = 0.5*C`;
 export const PRESET_COLLIDER = `C = 0.5*A + 0.5*B`;
+export const PRESET_COMPLEX = `X = Con\nM = X\nY=Con+M\nCol=X+Y`;
 
 export const PRESETS = [
   { key: "mediation", label: "Load Mediation", text: PRESET_MEDIATION },
   { key: "confounding", label: "Load Confounding", text: PRESET_CONFOUNDING },
   { key: "collider", label: "Load Collider", text: PRESET_COLLIDER },
+    { key: "complex", label: "Load Complex DAG", text: PRESET_COMPLEX },
 ];
 
 // Triangular waveform helper used for the autoplay feature. Accepts a phase

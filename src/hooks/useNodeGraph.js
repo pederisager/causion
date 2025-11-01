@@ -18,66 +18,266 @@ const NODE_W = NODE_WIDTH;
 const NODE_H = NODE_HEIGHT;
 const RANK_SEP = RANK_SEPARATION;
 const NODE_SEP = NODE_SEPARATION;
+const BASE_SPACING = NODE_H + NODE_SEP;
 
-function layoutLeftRight(eqs) {
-  const order = topoSortSafe(eqs);
-  const rank = {};
-  for (const id of order) {
-    const parents = [...(eqs.get(id) || [])];
-    rank[id] = parents.length
-      ? Math.max(...parents.map((p) => rank[p] || 0)) + 1
-      : 0;
+function layoutLeftRight(eqs, allVars) {
+  const nodeIds = new Set(allVars ?? []);
+  for (const [child, parents] of eqs) {
+    nodeIds.add(child);
+    for (const parent of parents ?? []) {
+      nodeIds.add(parent);
+    }
   }
 
-  const buckets = new Map();
+  if (nodeIds.size === 0) {
+    return {};
+  }
+
+  const parentMap = new Map();
+  const childMap = new Map();
+  for (const id of nodeIds) {
+    parentMap.set(id, new Set());
+    childMap.set(id, new Set());
+  }
+
+  for (const [child, parentsRaw] of eqs) {
+    const parents = parentsRaw ? [...parentsRaw] : [];
+    const bucket = parentMap.get(child);
+    for (const parent of parents) {
+      bucket.add(parent);
+      childMap.get(parent)?.add(child);
+    }
+  }
+
+  const order = topoSortSafe(parentMap, childMap, nodeIds);
+  const rank = new Map();
   for (const id of order) {
-    const r = rank[id];
-    if (!buckets.has(r)) buckets.set(r, []);
-    buckets.get(r).push(id);
+    const parents = parentMap.get(id) ?? new Set();
+    if (!parents.size) {
+      rank.set(id, 0);
+      continue;
+    }
+    let current = 0;
+    for (const parent of parents) {
+      current = Math.max(current, (rank.get(parent) ?? 0) + 1);
+    }
+    rank.set(id, current);
+  }
+
+  const rankBuckets = new Map();
+  const topoIndex = new Map(order.map((id, index) => [id, index]));
+  for (const id of order) {
+    const r = rank.get(id) ?? 0;
+    if (!rankBuckets.has(r)) {
+      rankBuckets.set(r, []);
+    }
+    rankBuckets.get(r).push(id);
+  }
+
+  const sortedRanks = [...rankBuckets.keys()].sort((a, b) => a - b);
+  const layers = sortedRanks.map((r) =>
+    rankBuckets.get(r).sort((a, b) => (topoIndex.get(a) ?? 0) - (topoIndex.get(b) ?? 0))
+  );
+
+  const barycenterSort = (layer, neighborLayer, accessNeighbors) => {
+    if (!neighborLayer) return;
+    const neighborOrder = new Map(
+      neighborLayer.map((id, index) => [id, index])
+    );
+    layer.sort((a, b) => {
+      const weightA = computeBarycenter(accessNeighbors(a), neighborOrder, topoIndex.get(a) ?? 0);
+      const weightB = computeBarycenter(accessNeighbors(b), neighborOrder, topoIndex.get(b) ?? 0);
+      if (weightA === weightB) {
+        return (topoIndex.get(a) ?? 0) - (topoIndex.get(b) ?? 0) || (a < b ? -1 : a > b ? 1 : 0);
+      }
+      return weightA - weightB;
+    });
+  };
+
+  for (let i = 1; i < layers.length; i += 1) {
+    const layer = layers[i];
+    const prev = layers[i - 1];
+    barycenterSort(layer, prev, (id) => parentMap.get(id) ?? new Set());
+  }
+
+  for (let i = layers.length - 2; i >= 0; i -= 1) {
+    const layer = layers[i];
+    const next = layers[i + 1];
+    barycenterSort(layer, next, (id) => childMap.get(id) ?? new Set());
   }
 
   let maxRows = 0;
-  for (const arr of buckets.values()) {
-    maxRows = Math.max(maxRows, arr.length);
+  for (const layer of layers) {
+    maxRows = Math.max(maxRows, layer.length);
   }
 
   const xForRank = (r) => 50 + r * (NODE_W + RANK_SEP);
   const pos = {};
-  for (const [r, arr] of buckets) {
-    const totalH = arr.length * (NODE_H + NODE_SEP) - NODE_SEP;
-    const startY = Math.max(50, (maxRows * (NODE_H + NODE_SEP) - NODE_SEP - totalH) / 2 + 50);
-    arr.forEach((id, i) => {
-      pos[id] = { x: xForRank(r), y: startY + i * (NODE_H + NODE_SEP) };
+  const globalHeight = maxRows ? maxRows * BASE_SPACING - NODE_SEP : 0;
+  for (let i = 0; i < layers.length; i += 1) {
+    const layer = layers[i];
+    const totalH = layer.length ? layer.length * BASE_SPACING - NODE_SEP : 0;
+    const baseY = layer.length
+      ? Math.max(50, 50 + (globalHeight - totalH) / 2)
+      : 50;
+    layer.forEach((id, index) => {
+      pos[id] = { x: xForRank(i), y: baseY + index * BASE_SPACING };
     });
   }
+
+  const centersInitial = new Map();
+  for (const id of order) {
+    const base = pos[id]?.y ?? 50;
+    centersInitial.set(id, base + NODE_H / 2);
+  }
+
+  const rankOf = (id) => rank.get(id) ?? 0;
+  const average = (values) =>
+    values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : undefined;
+
+  let centers = centersInitial;
+  const iterations = 3;
+  for (let pass = 0; pass < iterations; pass += 1) {
+    const nextCenters = new Map(centers);
+
+    for (const id of order) {
+      const current = centers.get(id) ?? (50 + NODE_H / 2);
+      const parents = [...(parentMap.get(id) ?? [])].filter((p) => centers.has(p));
+      const children = [...(childMap.get(id) ?? [])].filter((c) => centers.has(c));
+      const parentCenters = parents.map((p) => centers.get(p)).filter(Number.isFinite);
+      const childCenters = children.map((c) => centers.get(c)).filter(Number.isFinite);
+
+      let desired = current;
+
+      const avgParents = average(parentCenters);
+      const avgChildren = average(childCenters);
+
+      if (Number.isFinite(avgParents) && Number.isFinite(avgChildren)) {
+        desired = (avgParents + avgChildren) / 2;
+      } else if (Number.isFinite(avgParents)) {
+        desired = avgParents;
+      } else if (Number.isFinite(avgChildren)) {
+        desired = avgChildren;
+      }
+
+      if (!parentCenters.length && childCenters.length) {
+        const gaps = children
+          .map((child) => (rankOf(child) - rankOf(id)))
+          .filter((gap) => gap > 1);
+        if (gaps.length) {
+          const avgGap = gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length;
+          desired -= BASE_SPACING * Math.min(Math.max(avgGap - 1, 0), 2) * 0.7;
+        }
+      }
+
+      if (!childCenters.length && parentCenters.length) {
+        const gaps = parents
+          .map((parent) => (rankOf(id) - rankOf(parent)))
+          .filter((gap) => gap > 1);
+        if (gaps.length) {
+          const avgGap = gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length;
+          desired += BASE_SPACING * Math.min(Math.max(avgGap - 1, 0), 2) * 0.7;
+        }
+      }
+
+      const blended = current * 0.4 + desired * 0.6;
+      nextCenters.set(id, blended);
+    }
+
+    for (let i = 0; i < layers.length; i += 1) {
+      const layer = layers[i];
+      if (layer.length <= 1) continue;
+      let prevCenter = nextCenters.get(layer[0]) ?? (50 + NODE_H / 2);
+      nextCenters.set(layer[0], prevCenter);
+      for (let index = 1; index < layer.length; index += 1) {
+        const id = layer[index];
+        const current = nextCenters.get(id) ?? prevCenter + BASE_SPACING;
+        const minAllowed = prevCenter + BASE_SPACING;
+        const adjusted = current < minAllowed ? minAllowed : current;
+        nextCenters.set(id, adjusted);
+        prevCenter = adjusted;
+      }
+
+      let nextCenter = nextCenters.get(layer[layer.length - 1]) ?? prevCenter;
+      for (let index = layer.length - 2; index >= 0; index -= 1) {
+        const id = layer[index];
+        const current = nextCenters.get(id) ?? nextCenter - BASE_SPACING;
+        const maxAllowed = nextCenter - BASE_SPACING;
+        const adjusted = current > maxAllowed ? maxAllowed : current;
+        nextCenters.set(id, adjusted);
+        nextCenter = adjusted;
+      }
+    }
+
+    centers = nextCenters;
+  }
+
+  let minCenter = Infinity;
+  for (const center of centers.values()) {
+    if (Number.isFinite(center)) {
+      minCenter = Math.min(minCenter, center);
+    }
+  }
+
+  const offset = Number.isFinite(minCenter) ? Math.max(0, 50 + NODE_H / 2 - minCenter) : 0;
+
+  for (const id of order) {
+    const adjustedCenter = (centers.get(id) ?? (50 + NODE_H / 2)) + offset;
+    pos[id] = {
+      ...pos[id],
+      y: Math.max(50, adjustedCenter - NODE_H / 2),
+    };
+  }
+
   return pos;
 }
 
-function topoSortSafe(eqs) {
+function computeBarycenter(neighbors, neighborOrder, fallback) {
+  const values = [];
+  for (const neighbor of neighbors || []) {
+    if (neighborOrder.has(neighbor)) {
+      values.push(neighborOrder.get(neighbor));
+    }
+  }
+  if (!values.length) return fallback;
+  const total = values.reduce((sum, value) => sum + value, 0);
+  return total / values.length;
+}
+
+function topoSortSafe(parentMap, childMap, nodeIds) {
   try {
-    const visited = new Set();
-    const visiting = new Set();
+    const indegree = new Map();
+    const pending = [...nodeIds].sort();
+    for (const id of pending) {
+      indegree.set(id, (parentMap.get(id) ?? new Set()).size);
+    }
+
+    const queue = pending
+      .filter((id) => (indegree.get(id) ?? 0) === 0)
+      .sort();
+
     const order = [];
-
-    const dfs = (node) => {
-      if (visited.has(node)) return;
-      if (visiting.has(node)) return;
-      visiting.add(node);
-      for (const parent of eqs.get(node) || []) {
-        dfs(parent);
-      }
-      visiting.delete(node);
-      visited.add(node);
+    while (queue.length) {
+      const node = queue.shift();
       order.push(node);
-    };
+      const children = childMap.get(node);
+      if (!children) continue;
+      for (const child of children) {
+        indegree.set(child, (indegree.get(child) ?? 1) - 1);
+        if (indegree.get(child) === 0) {
+          queue.push(child);
+        }
+      }
+      queue.sort();
+    }
 
-    for (const node of eqs.keys()) {
-      dfs(node);
+    if (order.length !== nodeIds.size) {
+      throw new Error("cycle detected");
     }
 
     return order;
   } catch {
-    return [...eqs.keys()];
+    return [...nodeIds].sort();
   }
 }
 
@@ -146,7 +346,7 @@ export function useNodeGraph({
     }
 
     const ids = [...allVars];
-    const positions = features.layoutFreeform ? null : layoutLeftRight(eqs);
+    const positions = features.layoutFreeform ? null : layoutLeftRight(eqs, allVars);
 
     setNodes((prev) => {
       const prevMap = new Map(prev.map((n) => [n.id, n]));
