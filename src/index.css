@@ -222,3 +222,162 @@ body.theme-causion .cheatsheet-dismiss:focus-visible {
     text-align: center;
   }
 }
+
+body.phone-ui-mode {
+  overflow: hidden;
+}
+
+.phone-ui-shell {
+  padding: clamp(0.75rem, 3vw, 1.5rem);
+  padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+}
+
+.phone-header {
+  min-height: 48px;
+}
+
+.panel-zone {
+  min-height: 0;
+}
+
+.panel-zone--phone {
+  overflow-y: auto;
+  max-width: none !important;
+  padding-right: 0 !important;
+  padding-bottom: 5rem;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.phone-pane {
+  min-height: 0;
+}
+
+.phone-pane--dag {
+  display: flex;
+  flex-direction: column;
+}
+
+.phone-layout--portrait .phone-pane--dag {
+  flex: 0 0 50%;
+  max-height: 50%;
+  overflow: hidden;
+}
+
+.phone-layout--portrait .phone-pane--panels {
+  flex: 1 1 50%;
+}
+
+.dag-zone {
+  position: relative;
+}
+
+.dag-zone--phone {
+  position: relative;
+  top: auto;
+  z-index: auto;
+}
+
+.phone-layout--portrait .panel-zone--phone {
+  margin-top: 1rem;
+}
+
+.phone-layout {
+  gap: 1rem;
+  height: 100%;
+  min-height: 0;
+}
+
+.phone-layout--portrait {
+  flex-direction: column;
+}
+
+.phone-layout--landscape {
+  flex-direction: row;
+}
+
+.phone-layout--landscape .dag-zone--phone {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.phone-layout--landscape .panel-zone--phone {
+  max-width: 50%;
+}
+
+.phone-dag-canvas {
+  height: min(55vh, 520px);
+  min-height: 320px;
+}
+
+.phone-layout--portrait .phone-dag-canvas {
+  height: 100%;
+  min-height: unset;
+}
+
+.phone-layout--landscape .phone-dag-canvas {
+  height: calc(100vh - 140px);
+}
+
+.phone-apply-dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  margin-top: auto;
+}
+
+.phone-data-viz {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: min(320px, 90%);
+}
+
+.phone-data-viz--landscape {
+  right: 1rem;
+  left: auto;
+}
+
+.phone-data-viz__card {
+  max-height: 65vh;
+  overflow-y: auto;
+}
+
+.phone-data-viz__pill {
+  border-radius: 9999px;
+  padding: 0.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.phone-data-viz__pill.is-active {
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.35);
+}
+
+.pill-action {
+  border: none;
+  background: transparent;
+  font: inherit;
+  padding: 0.35rem 0.9rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+
+.pill-action--secondary {
+  opacity: 0.8;
+}
+
+.phone-slider__header {
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}

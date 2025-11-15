@@ -12,7 +12,7 @@ describe("App", () => {
     expect(() => renderWithProviders(React.createElement(App))).not.toThrow();
   });
 
-  it("keeps the dev panel hidden until toggled", () => {
+  it("keeps the dev panel hidden until toggled", async () => {
     const { createApp } = __TEST_ONLY__;
     const { App } = createApp(reactFlowBridgeStub);
 
@@ -23,7 +23,7 @@ describe("App", () => {
     const toggleButton = screen.getByRole("button", { name: /show dev panel/i });
     fireEvent.click(toggleButton);
 
-    expect(screen.getByText("Dev Panel (feature flags)")).toBeInTheDocument();
+    expect(await screen.findByText("Dev Panel (feature flags)")).toBeInTheDocument();
   });
 
   it("keeps the random toggle available while do() is active", () => {
@@ -32,12 +32,12 @@ describe("App", () => {
 
     renderWithProviders(React.createElement(App));
 
-    const randomButton = screen.getAllByRole("button", { name: /random/i })[0];
+    const randomButton = screen.getAllByRole("button", { name: /random play/i })[0];
     expect(randomButton).toBeEnabled();
 
-    const clampCheckbox = screen.getAllByRole("checkbox", { name: /do\(\)/i })[0];
-    fireEvent.click(clampCheckbox);
-    expect(clampCheckbox).toBeChecked();
+    const clampToggle = screen.getAllByRole("button", { name: /do\(\) clamp/i })[0];
+    fireEvent.click(clampToggle);
+    expect(clampToggle).toHaveAttribute("aria-pressed", "true");
     expect(randomButton).toBeEnabled();
   });
 });

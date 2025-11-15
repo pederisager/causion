@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -8,14 +8,16 @@ import ReactFlow, {
 } from "reactflow";
 import CircleNode from "./components/nodes/CircleNode.js";
 import CausalEdge from "./components/edges/CausalEdge.js";
-import DevPanel from "./components/panels/DevPanel.js";
 import DataVisualizationPanel from "./components/panels/DataVisualizationPanel.js";
-import CheatSheetModal from "./components/panels/CheatSheetModal.jsx";
 import { DEFAULT_FEATURE_FLAGS } from "./components/constants.js";
 import { PRESETS } from "./data/presets.js";
 import { useScmModel } from "./hooks/useScmModel.js";
 import { useNodeGraph } from "./hooks/useNodeGraph.js";
 import { usePropagationEffects } from "./hooks/usePropagationEffects.js";
+import { usePhoneLayout } from "./hooks/usePhoneLayout.js";
+
+const DevPanel = lazy(() => import("./components/panels/DevPanel.js"));
+const CheatSheetModal = lazy(() => import("./components/panels/CheatSheetModal.jsx"));
 
 const defaultFeatures = { ...DEFAULT_FEATURE_FLAGS };
 
@@ -50,6 +52,10 @@ export function createApp(overrides = {}) {
     const [features, setFeatures] = useState(defaultFeatures);
     const [isDevPanelVisible, setIsDevPanelVisible] = useState(false);
     const [isCheatSheetOpen, setIsCheatSheetOpen] = useState(false);
+    const [forcePhoneLayout, setForcePhoneLayout] = useState(false);
+    const [advancedOpenMap, setAdvancedOpenMap] = useState({});
+    const { isPhoneLayout, orientation } = usePhoneLayout(forcePhoneLayout);
+    const isPortrait = orientation !== "landscape";
     const joinClasses = (...classes) => classes.filter(Boolean).join(" ");
     const themePreset = features.stylePreset === "minimal" ? "minimal" : "causion";
     const isCausion = themePreset === "causion";
@@ -64,6 +70,20 @@ export function createApp(overrides = {}) {
         body.classList.remove("theme-causion", "theme-minimal");
       };
     }, [isCausion]);
+
+    useEffect(() => {
+      if (typeof document === "undefined") return undefined;
+      const body = document.body;
+      if (!body) return undefined;
+      if (isPhoneLayout) {
+        body.classList.add("phone-ui-mode");
+      } else {
+        body.classList.remove("phone-ui-mode");
+      }
+      return () => {
+        body.classList.remove("phone-ui-mode");
+      };
+    }, [isPhoneLayout]);
 
     const defaultPreset = PRESETS[0]?.text ?? "";
     const {
@@ -124,7 +144,9 @@ export function createApp(overrides = {}) {
       propagation.handleValueCommit(id, rawValue);
     };
 
-    const sliderRows = [...allVars].sort().map((id) => {
+    const sortedVariables = useMemo(() => Array.from(allVars || []).sort(), [allVars]);
+
+    const sliderRows = sortedVariables.map((id) => {
       const range = propagation.ranges[id] || { min: -100, max: 100 };
       const sliderValue = propagation.values[id] ?? 0;
       const span = range.max - range.min || 1;
@@ -138,80 +160,66 @@ export function createApp(overrides = {}) {
               100}%, var(--track) ${normalized * 100}%, var(--track) 100%)`,
           }
         : undefined;
-
-      const autoClass = joinClasses(
-        isCausion ? "btn-outline text-xs px-2 py-1" : "px-2 py-0.5 rounded border",
-        propagation.autoPlay[id] &&
-          (isCausion ? "is-active" : "bg-green-50 border-green-400")
-      );
-      const randomClass = joinClasses(
-        isCausion ? "btn-outline text-xs px-2 py-1 is-random" : "px-2 py-0.5 rounded border",
-        propagation.randomPlay[id] &&
-          (isCausion ? "is-active" : "bg-blue-50 border-blue-400")
-      );
       const numberFieldClass = joinClasses(
         isCausion ? "causion-field text-sm" : "w-28 border rounded px-2 py-1"
       );
       const rangeFieldClass = joinClasses(
         isCausion ? "causion-field text-sm" : "w-20 border rounded px-2 py-1"
       );
-
-      const toggleChildren = [
-        h(
-          "button",
-          {
-            key: "slide",
-            className: autoClass,
-            title: "Toggle slide (triangle wave)",
-            onClick: () => propagation.toggleAutoPlay(id),
-          },
-          propagation.autoPlay[id] ? "⏸ slide" : "▶ slide"
-        ),
-      ];
-
-      if (!isCausion) {
-        toggleChildren.push(h("span", { key: "sep-1" }, "|"));
-      }
-
-      toggleChildren.push(
-        h(
-          "button",
-          {
-            key: "random",
-            className: randomClass,
-            title: "Toggle random (uniform draw)",
-            onClick: () => propagation.toggleRandomPlay(id),
-          },
-          propagation.randomPlay[id] ? "⏸ random" : "🎲 random"
-        )
+      const isAuto = !!propagation.autoPlay[id];
+      const isRandom = !!propagation.randomPlay[id];
+      const isClamped = !!propagation.interventions[id];
+      const isAdvancedOpen = !!advancedOpenMap[id];
+      const slideAriaLabel = isAuto
+        ? `Stop auto slide for ${id}`
+        : `Start auto slide for ${id}`;
+      const randomAriaLabel = isRandom
+        ? `Stop random play for ${id}`
+        : `Start random play for ${id}`;
+      const doAriaLabel = isClamped
+        ? `Release do() clamp for ${id}`
+        : `Apply do() clamp for ${id}`;
+      const advancedAriaLabel = isAdvancedOpen
+        ? `Hide advanced controls for ${id}`
+        : `Show advanced controls for ${id}`;
+      const iconButtonBase = joinClasses(
+        "w-9 h-9 rounded-full border flex items-center justify-center text-base transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
+        isCausion
+          ? "border-[var(--color-ink-border)] text-[var(--color-text)] focus-visible:ring-[var(--color-ink-border)]"
+          : "border-slate-300 text-slate-700 bg-white shadow-sm focus-visible:ring-slate-400"
       );
-
-      if (!isCausion) {
-        toggleChildren.push(h("span", { key: "sep-2" }, "|"));
-      }
-
-      toggleChildren.push(
-        h(
-          "label",
-          {
-            key: "clamp",
-            className: joinClasses(
-              "flex items-center gap-1",
-              isCausion ? "uppercase tracking-[0.12em]" : "text-xs"
-            ),
-            style: isCausion
-              ? { fontFamily: 'var(--font-mono)', fontSize: "0.7rem" }
-              : undefined,
-          },
-          h("input", {
-            type: "checkbox",
-            className: joinClasses("mr-1", isCausion && "causion-checkbox"),
-            checked: !!propagation.interventions[id],
-            disabled: !!propagation.autoPlay[id],
-            onChange: (e) => propagation.setClamp(id, e.target.checked),
-          }),
-          "do()"
-        )
+      const slideBtnClass = joinClasses(
+        iconButtonBase,
+        isAuto &&
+          (isCausion
+            ? "bg-[var(--color-node-pos)] text-white border-[var(--color-node-pos)]"
+            : "bg-amber-500 text-white border-amber-500")
+      );
+      const randomBtnClass = joinClasses(
+        iconButtonBase,
+        isRandom &&
+          (isCausion
+            ? "bg-[var(--color-node-neg)] text-white border-[var(--color-node-neg)]"
+            : "bg-slate-800 text-white border-slate-800")
+      );
+      const doButtonClass = joinClasses(
+        "px-3 py-1 rounded-full text-[0.7rem] font-semibold tracking-[0.18em] uppercase border transition",
+        isCausion
+          ? "border-[var(--color-ink-border)]"
+          : "border-slate-300 text-slate-700",
+        isClamped &&
+          (isCausion
+            ? "bg-[var(--color-ink-line)] text-white border-[var(--color-ink-line)]"
+            : "bg-slate-900 text-white border-slate-900"),
+        isAuto && "opacity-50 cursor-not-allowed"
+      );
+      const advancedToggleClass = joinClasses(
+        iconButtonBase,
+        "text-lg",
+        isAdvancedOpen &&
+          (isCausion
+            ? "bg-[var(--color-bg-panel)]"
+            : "bg-slate-100")
       );
 
       const rowProps = { key: id, className: "mb-4" };
@@ -227,7 +235,8 @@ export function createApp(overrides = {}) {
           {
             className: joinClasses(
               "flex items-center gap-3",
-              isCausion ? "justify-between text-sm font-medium" : "text-sm font-medium mb-1"
+              isPhoneLayout ? "phone-slider__header" : "",
+              isCausion ? "text-sm font-medium" : "text-sm font-medium mb-1"
             ),
           },
           h(
@@ -238,7 +247,7 @@ export function createApp(overrides = {}) {
               {
                 className: isCausion
                   ? "uppercase tracking-[0.12em] text-xs"
-                  : undefined,
+                  : "text-xs font-semibold",
               },
               `${id}:`
             ),
@@ -258,13 +267,62 @@ export function createApp(overrides = {}) {
           ),
           h(
             "div",
-            {
-              className: joinClasses(
-                "ml-auto text-xs flex items-center gap-2",
-                isCausion && "ml-0 gap-3"
-              ),
+            { className: "flex items-center gap-2 ml-auto" },
+            h(
+              "button",
+              {
+                type: "button",
+                className: slideBtnClass,
+            title: "Toggle slide (triangle wave)",
+            "aria-label": slideAriaLabel,
+            onClick: () => propagation.toggleAutoPlay(id),
+            "aria-pressed": isAuto,
+          },
+          isAuto ? "⏸" : "▶"
+        ),
+            h(
+              "button",
+              {
+                type: "button",
+                className: randomBtnClass,
+            title: "Toggle random (uniform draw)",
+            "aria-label": randomAriaLabel,
+            onClick: () => propagation.toggleRandomPlay(id),
+            "aria-pressed": isRandom,
+          },
+          "🎲"
+        ),
+            h(
+              "button",
+              {
+                type: "button",
+            className: doButtonClass,
+            disabled: isAuto,
+            onClick: () => {
+              if (isAuto) return;
+              propagation.setClamp(id, !isClamped);
             },
-            ...toggleChildren
+            "aria-pressed": isClamped,
+            "aria-label": doAriaLabel,
+          },
+          "DO"
+        ),
+            h(
+              "button",
+              {
+                type: "button",
+                className: advancedToggleClass,
+            title: "Adjust precise value and range",
+            "aria-label": advancedAriaLabel,
+            onClick: () =>
+              setAdvancedOpenMap((prev) => ({
+                ...prev,
+                    [id]: !prev[id],
+                  })),
+                "aria-expanded": isAdvancedOpen,
+              },
+              "⋯"
+            )
           )
         ),
         h("input", {
@@ -284,51 +342,59 @@ export function createApp(overrides = {}) {
           onBlur: (e) => finishDrag(id, Number(e.target.value)),
         }),
         isCausion ? h("div", { className: "ticks" }) : null,
-        h(
-          "div",
-          {
-            className: joinClasses(
-              "flex gap-2 mt-1 items-center",
-              isCausion && "mt-0 text-xs"
-            ),
-            style: isCausion ? { color: "var(--color-text-muted)" } : undefined,
-          },
-          h("input", {
-            type: "number",
-            className: numberFieldClass,
-            style: isCausion ? { width: "6.5rem" } : { width: "7rem" },
-            min: range.min,
-            max: range.max,
-            step: 1,
-            value: sliderValue,
-            onChange: (e) => propagation.handleValueChange(id, Number(e.target.value)),
-          }),
-          h(
-            "span",
-            {
-              className: joinClasses(
-                "text-xs ml-2 opacity-70",
-                isCausion && "ml-0 uppercase tracking-[0.2em]"
+        isAdvancedOpen
+          ? h(
+              "div",
+              {
+                className: joinClasses(
+                  "flex flex-col gap-2 mt-2 text-xs",
+                  isCausion && "text-[0.7rem] tracking-[0.08em]"
+                ),
+                style: isCausion ? { color: "var(--color-text-muted)" } : undefined,
+              },
+              h(
+                "label",
+                { className: "flex flex-col gap-1" },
+                "Value",
+                h("input", {
+                  type: "number",
+                  className: numberFieldClass,
+                  style: isCausion ? { width: "100%" } : undefined,
+                  min: range.min,
+                  max: range.max,
+                  step: 1,
+                  value: sliderValue,
+                  onChange: (e) => propagation.handleValueChange(id, Number(e.target.value)),
+                })
               ),
-            },
-            "range"
-          ),
-          h("input", {
-            type: "number",
-            className: rangeFieldClass,
-            style: isCausion ? { width: "5rem" } : { width: "5.5rem" },
-            value: range.min,
-            onChange: (e) => propagation.handleRangeMinChange(id, Number(e.target.value)),
-          }),
-          h("span", null, "→"),
-          h("input", {
-            type: "number",
-            className: rangeFieldClass,
-            style: isCausion ? { width: "5rem" } : { width: "5.5rem" },
-            value: range.max,
-            onChange: (e) => propagation.handleRangeMaxChange(id, Number(e.target.value)),
-          })
-        )
+              h(
+                "div",
+                { className: "flex items-center gap-2" },
+                h(
+                  "label",
+                  { className: "flex flex-col gap-1 flex-1" },
+                  "Min",
+                  h("input", {
+                    type: "number",
+                    className: rangeFieldClass,
+                    value: range.min,
+                    onChange: (e) => propagation.handleRangeMinChange(id, Number(e.target.value)),
+                  })
+                ),
+                h(
+                  "label",
+                  { className: "flex flex-col gap-1 flex-1" },
+                  "Max",
+                  h("input", {
+                    type: "number",
+                    className: rangeFieldClass,
+                    value: range.max,
+                    onChange: (e) => propagation.handleRangeMaxChange(id, Number(e.target.value)),
+                  })
+                )
+              )
+            )
+          : null
       );
     });
 
@@ -353,6 +419,42 @@ export function createApp(overrides = {}) {
         preset.label
       );
     });
+
+    const renderApplyButton = (variant = "panel") =>
+      h(
+        "button",
+        {
+          type: "button",
+          className: joinClasses(
+            "px-4 py-2 rounded-md font-semibold text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 transition-colors",
+            isCausion ? "uppercase tracking-[0.12em]" : "",
+            hasPendingChanges ? "" : "opacity-60 cursor-not-allowed",
+            variant === "dock" && "w-full flex items-center justify-center text-base"
+          ),
+          style: isCausion
+            ? {
+                background: hasPendingChanges
+                  ? "linear-gradient(135deg, #f8d77b 10%, #d8a632 55%, #b8860b 100%)"
+                  : "#d1c49a",
+                color: "#1f1402",
+                border: "1px solid rgba(138, 101, 9, 0.8)",
+                boxShadow: hasPendingChanges
+                  ? "0 2px 6px rgba(68, 48, 4, 0.25)"
+                  : "none",
+              }
+            : {
+                backgroundColor: hasPendingChanges ? "#d4a017" : "#c9b27a",
+                color: "#1f1402",
+                border: "1px solid rgba(138, 101, 9, 0.6)",
+              },
+          disabled: !hasPendingChanges,
+          onClick: () => {
+            if (!hasPendingChanges) return;
+            applyScmChanges();
+          },
+        },
+        "Apply changes"
+      );
 
     const scmPanel = h(
       "div",
@@ -385,48 +487,18 @@ export function createApp(overrides = {}) {
         value: scmText,
         onChange: (e) => setScmText(e.target.value),
       }),
-      h(
-        "div",
-        {
-          className: joinClasses(
-            "mt-3 flex items-center gap-3",
-            isCausion ? "justify-start" : ""
-          ),
-        },
-        h(
-          "button",
-          {
-            type: "button",
-            className: joinClasses(
-              "px-4 py-2 rounded-md font-semibold text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 transition-colors",
-              isCausion ? "uppercase tracking-[0.12em]" : "",
-              hasPendingChanges ? "" : "opacity-60 cursor-not-allowed"
-            ),
-            style: isCausion
-              ? {
-                  background: hasPendingChanges
-                    ? "linear-gradient(135deg, #f8d77b 10%, #d8a632 55%, #b8860b 100%)"
-                    : "#d1c49a",
-                  color: "#1f1402",
-                  border: "1px solid rgba(138, 101, 9, 0.8)",
-                  boxShadow: hasPendingChanges
-                    ? "0 2px 6px rgba(68, 48, 4, 0.25)"
-                    : "none",
-                }
-              : {
-                  backgroundColor: hasPendingChanges ? "#d4a017" : "#c9b27a",
-                  color: "#1f1402",
-                  border: "1px solid rgba(138, 101, 9, 0.6)",
-                },
-            disabled: !hasPendingChanges,
-            onClick: () => {
-              if (!hasPendingChanges) return;
-              applyScmChanges();
+      !isPhoneLayout
+        ? h(
+            "div",
+            {
+              className: joinClasses(
+                "mt-3 flex items-center gap-3",
+                isCausion ? "justify-start" : ""
+              ),
             },
-          },
-          "Apply changes"
-        )
-      ),
+            renderApplyButton()
+          )
+        : null,
       h(
         "div",
         {
@@ -515,18 +587,114 @@ export function createApp(overrides = {}) {
       ...sliderRows
     );
 
-    const leftColumn = h(
-      "div",
-      {
-        className: joinClasses(
-          "flex flex-col w-full shrink-0 overflow-y-auto pr-1",
-          isCausion ? "gap-5 max-w-md" : "gap-4 max-w-sm"
-        ),
-      },
-      assignPanel,
-      scmPanel,
-      isDevPanelVisible
-        ? h(DevPanel, {
+    const desktopUtilityButtonClass = joinClasses(
+      isCausion ? "btn-outline text-sm" : "px-3 py-1 rounded border shadow-sm text-sm"
+    );
+    const condensedUtilityButtonClass = joinClasses(
+      isCausion
+        ? "btn-outline text-[0.65rem] tracking-[0.15em] w-full flex items-center justify-center"
+        : "px-2 py-1 rounded border shadow-sm text-xs w-full flex items-center justify-center"
+    );
+
+    const renderEdgeLabelToggleButton = (variant = "desktop") =>
+      h(
+        "button",
+        {
+          type: "button",
+          className: joinClasses(
+            variant === "desktop" ? desktopUtilityButtonClass : condensedUtilityButtonClass,
+            isCausion && features.edgeEffectLabels && "is-active"
+          ),
+          onClick: () =>
+            setFeatures((previous) => ({
+              ...previous,
+              edgeEffectLabels: !previous.edgeEffectLabels,
+            })),
+          "aria-pressed": features.edgeEffectLabels,
+        },
+        features.edgeEffectLabels ? "Hide edge formulas" : "Show edge formulas"
+      );
+
+    const renderDevToggleButton = (variant = "desktop") =>
+      h(
+        "button",
+        {
+          type: "button",
+          className: joinClasses(
+            variant === "desktop" ? desktopUtilityButtonClass : condensedUtilityButtonClass,
+            isCausion && isDevPanelVisible && "is-active"
+          ),
+          onClick: () => setIsDevPanelVisible((previous) => !previous),
+          "aria-expanded": isDevPanelVisible,
+        },
+        isDevPanelVisible ? "Hide dev panel" : "Show dev panel"
+      );
+
+    const renderPhonePreviewButton = (variant = "desktop") =>
+      h(
+        "button",
+        {
+          type: "button",
+          className: joinClasses(
+            variant === "desktop" ? desktopUtilityButtonClass : condensedUtilityButtonClass,
+            forcePhoneLayout && (isCausion ? "is-active" : "bg-amber-100")
+          ),
+          onClick: () => setForcePhoneLayout((prev) => !prev),
+          "aria-pressed": forcePhoneLayout,
+        },
+        forcePhoneLayout ? "Exit phone UI beta" : "Phone UI beta"
+      );
+
+    const phoneUtilityPanel = isPhoneLayout
+      ? h(
+          "div",
+          { className: panelBaseClass },
+          h(
+            "div",
+            {
+              className: joinClasses(
+                panelHeadingClass,
+                isCausion ? "tracking-[0.08em]" : "mb-2"
+              ),
+            },
+            "Tools"
+          ),
+          h(
+            "div",
+            { className: "grid grid-cols-2 gap-2 w-full" },
+            renderEdgeLabelToggleButton("condensed"),
+            renderDevToggleButton("condensed"),
+            renderPhonePreviewButton("condensed")
+          )
+        )
+      : null;
+
+    const dockedApply = isPhoneLayout
+      ? h(
+          "div",
+          {
+            className: joinClasses(
+              "phone-apply-dock p-3",
+              isCausion
+                ? "causion-panel"
+                : "rounded-2xl shadow border bg-white"
+            ),
+          },
+          renderApplyButton("dock")
+        )
+      : null;
+
+    const devPanelContent = isDevPanelVisible
+      ? h(
+          Suspense,
+          {
+            fallback: h(
+              "div",
+              { className: panelBaseClass },
+              "Loading dev panel…"
+            ),
+          },
+          h(DevPanel, {
             features,
             setFeatures,
             selectOptions: {
@@ -537,7 +705,25 @@ export function createApp(overrides = {}) {
             },
             themePreset,
           })
-        : null
+        )
+      : null;
+
+    const leftColumn = h(
+      "div",
+      {
+        className: joinClasses(
+          "panel-zone flex flex-col w-full shrink-0",
+          isCausion ? "gap-5 max-w-md" : "gap-4 max-w-sm",
+          isPhoneLayout
+            ? "panel-zone--phone phone-pane phone-pane--panels"
+            : "overflow-y-auto pr-1"
+        ),
+      },
+      assignPanel,
+      scmPanel,
+      phoneUtilityPanel,
+      devPanelContent,
+      dockedApply
     );
 
     const flowChildren = [
@@ -547,28 +733,40 @@ export function createApp(overrides = {}) {
         gap: isCausion ? 32 : 16,
         color: isCausion ? "rgba(226, 222, 206, 0.35)" : "#e2e8f0",
       }),
-      h(FlowMiniMap, {
-        key: "mm",
-        pannable: true,
-        zoomable: true,
-        maskColor: isCausion ? "rgba(251, 249, 244, 0.9)" : undefined,
-        nodeColor: isCausion ? "var(--color-ink-line)" : undefined,
-      }),
+      !isPhoneLayout
+        ? h(FlowMiniMap, {
+            key: "mm",
+            pannable: true,
+            zoomable: true,
+            maskColor: isCausion ? "rgba(251, 249, 244, 0.9)" : undefined,
+            nodeColor: isCausion ? "var(--color-ink-line)" : undefined,
+          })
+        : null,
       h(FlowControls, {
         key: "controls",
-        style: isCausion ? { color: "var(--color-text-muted)" } : undefined,
+        position: isPhoneLayout ? "top-right" : "bottom-left",
+        style: isCausion
+          ? { color: "var(--color-text-muted)" }
+          : undefined,
       }),
-    ];
+    ].filter(Boolean);
 
     const canvasWrapperClass = joinClasses(
-      "relative overflow-hidden flex-1 w-full rounded-2xl shadow border h-[80vh]",
+      "relative overflow-hidden flex-1 w-full rounded-2xl shadow border",
+      isPhoneLayout ? "phone-dag-canvas" : "h-[80vh]",
       isCausion && "causion-canvas"
     );
     const canvasWrapperStyle = undefined;
 
     const rightColumn = h(
-      "div",
-      { className: "flex-1 min-h-0" },
+      "section",
+      {
+        className: joinClasses(
+          "dag-zone flex-1 min-h-0",
+          isPhoneLayout && "dag-zone--phone phone-pane phone-pane--dag",
+          !isPhoneLayout && "pl-1"
+        ),
+      },
       h(
         "style",
         null,
@@ -586,6 +784,7 @@ export function createApp(overrides = {}) {
             edgeTypes,
             onNodesChange,
             onEdgesChange,
+            deleteKeyCode: null,
             style: { width: "100%", height: "100%" },
           },
           flowChildren
@@ -594,89 +793,80 @@ export function createApp(overrides = {}) {
           allVars,
           values: propagation.values,
           themePreset,
+          isPhoneLayout,
+          orientation,
         })
       )
     );
 
-    const devToggleButton = h(
-      "button",
-      {
-        type: "button",
-        className: joinClasses(
-          isCausion ? "btn-outline text-sm" : "px-3 py-1 rounded border shadow-sm text-sm",
-          isCausion && isDevPanelVisible && "is-active"
-        ),
-        onClick: () => setIsDevPanelVisible((previous) => !previous),
-        "aria-expanded": isDevPanelVisible,
-      },
-      isDevPanelVisible ? "Hide dev panel" : "Show dev panel"
+    const layoutClass = joinClasses(
+      "flex flex-1 gap-4 min-h-0",
+      isCausion && "gap-6",
+      isPhoneLayout ? "phone-layout overflow-y-auto" : "overflow-hidden",
+      isPhoneLayout && (isPortrait ? "phone-layout--portrait" : "phone-layout--landscape")
     );
-
-    const edgeLabelToggleButton = h(
-      "button",
-      {
-        type: "button",
-        className: joinClasses(
-          isCausion ? "btn-outline text-sm" : "px-3 py-1 rounded border shadow-sm text-sm",
-          isCausion && features.edgeEffectLabels && "is-active"
-        ),
-        onClick: () =>
-          setFeatures((previous) => ({
-            ...previous,
-            edgeEffectLabels: !previous.edgeEffectLabels,
-          })),
-        "aria-pressed": features.edgeEffectLabels,
-      },
-      features.edgeEffectLabels ? "Hide edge formulas" : "Show edge formulas"
-    );
+    const layoutChildren = isPhoneLayout && isPortrait
+      ? [rightColumn, leftColumn]
+      : [leftColumn, rightColumn];
 
     return h(
       "div",
       {
         className: joinClasses(
-          "w-full h-full flex flex-col gap-4 p-4",
-          isCausion && "causion-app"
+          "w-full h-full flex flex-col gap-4 p-4 min-h-0",
+          isCausion && "causion-app",
+          isPhoneLayout && "phone-ui-shell"
         ),
       },
       h(
         "div",
         {
           className: joinClasses(
-            "flex items-center justify-between gap-4",
-            isCausion && "pb-2 border-b"
+            "flex items-center justify-between gap-3",
+            isCausion && "pb-2 border-b",
+            isPhoneLayout && "phone-header"
           ),
           style: isCausion ? { borderColor: "var(--color-ink-border)" } : undefined,
         },
         h(
           "h1",
           {
-            className: isCausion ? "h-heading text-3xl" : "text-3xl font-extrabold",
+            className: joinClasses(
+              isPhoneLayout
+                ? "text-sm font-semibold uppercase tracking-[0.35em]"
+                : isCausion
+                  ? "h-heading text-3xl"
+                  : "text-3xl font-extrabold"
+            ),
           },
-          "Causion – simulate causality"
+          isPhoneLayout ? "Causion" : "Causion – simulate causality"
         ),
-        h(
-          "div",
-          { className: "flex items-center gap-2" },
-          edgeLabelToggleButton,
-          devToggleButton
-        )
+        !isPhoneLayout
+          ? h(
+              "div",
+              { className: "flex items-center gap-2 flex-wrap justify-end" },
+              renderEdgeLabelToggleButton(),
+              renderDevToggleButton(),
+              renderPhonePreviewButton()
+            )
+          : null
       ),
       h(
         "div",
-        {
-          className: joinClasses(
-            "flex flex-1 gap-4 overflow-hidden",
-            isCausion && "gap-6"
-          ),
-        },
-        leftColumn,
-        rightColumn
+        { className: layoutClass },
+        ...layoutChildren
       ),
-      h(CheatSheetModal, {
-        isOpen: isCheatSheetOpen,
-        onClose: () => setIsCheatSheetOpen(false),
-        cheatSheetUrl: SCM_CHEATSHEET_URL,
-      })
+      isCheatSheetOpen
+        ? h(
+            Suspense,
+            { fallback: null },
+            h(CheatSheetModal, {
+              isOpen: isCheatSheetOpen,
+              onClose: () => setIsCheatSheetOpen(false),
+              cheatSheetUrl: SCM_CHEATSHEET_URL,
+            })
+          )
+        : null
     );
   }
 

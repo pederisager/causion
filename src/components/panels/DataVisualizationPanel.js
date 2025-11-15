@@ -171,7 +171,13 @@ function ScatterPlot({ samples, xLabel, yLabel, themePreset }) {
   );
 }
 
-export default function DataVisualizationPanel({ allVars, values, themePreset }) {
+export default function DataVisualizationPanel({
+  allVars,
+  values,
+  themePreset,
+  isPhoneLayout = false,
+  orientation = "portrait",
+}) {
   const resolvedTheme = detectThemePreset(themePreset);
   const isCausion = resolvedTheme === "causion";
   const joinClasses = (...classes) => classes.filter(Boolean).join(" ");
@@ -182,6 +188,7 @@ export default function DataVisualizationPanel({ allVars, values, themePreset })
   const [{ x, y }, setAxes] = useState(() => getDefaultAxes(options));
   const [isActive, setIsActive] = useState(false);
   const [samples, setSamples] = useState([]);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(!isPhoneLayout);
 
   const intervalRef = useRef(null);
   const lastAxesRef = useRef({ x: "", y: "" });
@@ -191,6 +198,16 @@ export default function DataVisualizationPanel({ allVars, values, themePreset })
   useEffect(() => {
     valuesRef.current = values;
   }, [values]);
+
+  useEffect(() => {
+    setIsDrawerOpen(!isPhoneLayout);
+  }, [isPhoneLayout]);
+
+  useEffect(() => {
+    if (isPhoneLayout && isActive) {
+      setIsDrawerOpen(true);
+    }
+  }, [isActive, isPhoneLayout]);
 
   useEffect(() => {
     const defaults = getDefaultAxes(options);
@@ -312,16 +329,9 @@ export default function DataVisualizationPanel({ allVars, values, themePreset })
     ? { color: "var(--color-text-muted)", fontFamily: "var(--font-body)" }
     : undefined;
 
-  return React.createElement(
-    "div",
-    {
-      className: joinClasses(
-        "absolute bottom-4 right-4 w-[280px] flex flex-col gap-3",
-        isCausion
-          ? "causion-panel causion-overlay p-4"
-          : "bg-white/95 backdrop-blur rounded-xl shadow-lg border border-slate-200 p-4"
-      ),
-    },
+  const panelBody = React.createElement(
+    React.Fragment,
+    null,
     React.createElement(
       "div",
       { className: "flex items-center justify-between gap-2" },
@@ -427,5 +437,89 @@ export default function DataVisualizationPanel({ allVars, values, themePreset })
           },
           "Turn on visualization to log paired values over time."
         )
+  );
+
+  if (!isPhoneLayout) {
+    return React.createElement(
+      "div",
+      {
+        className: joinClasses(
+          "absolute bottom-4 right-4 w-[280px] flex flex-col gap-3",
+          isCausion
+            ? "causion-panel causion-overlay p-4"
+            : "bg-white/95 backdrop-blur rounded-xl shadow-lg border border-slate-200 p-4"
+        ),
+      },
+      panelBody
+    );
+  }
+
+  return React.createElement(
+    "div",
+    {
+      className: joinClasses(
+        "phone-data-viz",
+        orientation === "landscape" && "phone-data-viz--landscape",
+        isDrawerOpen && "is-open"
+      ),
+    },
+    isDrawerOpen
+      ? React.createElement(
+          "div",
+          {
+            className: joinClasses(
+              "phone-data-viz__card",
+              isCausion
+                ? "causion-panel p-4"
+                : "bg-white shadow-lg border border-slate-200 rounded-2xl p-4"
+            ),
+          },
+          panelBody,
+          React.createElement(
+            "button",
+            {
+              type: "button",
+              className: joinClasses(
+                "mt-3 text-xs uppercase tracking-[0.2em]",
+                isCausion ? "text-[var(--color-text)]" : "text-slate-600"
+              ),
+              onClick: () => setIsDrawerOpen(false),
+            },
+            "Close"
+          )
+        )
+      : null,
+    React.createElement(
+      "div",
+      {
+        className: joinClasses(
+          "phone-data-viz__pill",
+          isActive && "is-active",
+          isCausion
+            ? "causion-panel"
+            : "bg-white shadow border border-slate-200"
+        ),
+      },
+      React.createElement(
+        "button",
+        {
+          type: "button",
+          className: "pill-action",
+          onClick: () => setIsActive((prev) => !prev),
+          "aria-pressed": isActive,
+        },
+        isActive ? "Stop" : "Visualize"
+      ),
+      React.createElement(
+        "button",
+        {
+          type: "button",
+          className: "pill-action pill-action--secondary",
+          onClick: () => setIsDrawerOpen((prev) => !prev),
+          "aria-expanded": isDrawerOpen,
+        },
+        isDrawerOpen ? "Hide" : "Details"
+      )
+    )
   );
 }

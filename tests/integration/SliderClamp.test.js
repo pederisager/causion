@@ -60,10 +60,10 @@ describe("Slider clamp integration", () => {
     // Value label uses the span.opacity-70 inside the slider row (defined in src/App.js).
     const getValueLabel = () => sliderRow.querySelector("span.opacity-70");
     const slider = within(sliderRow).getByRole("slider");
-    const clampToggle = within(sliderRow).getByRole("checkbox", { name: /do\(\)/i });
+    const clampToggle = within(sliderRow).getByRole("button", { name: /do\(\) clamp/i });
 
     expect(getValueLabel()).toHaveTextContent("0.00");
-    expect(clampToggle).not.toBeChecked();
+    expect(clampToggle).toHaveAttribute("aria-pressed", "false");
     expect(sliderRow).toHaveClass("mb-4");
     expect(sliderRow).not.toHaveClass("is-clamped");
     fireEvent.mouseDown(slider);
@@ -78,7 +78,7 @@ describe("Slider clamp integration", () => {
 
     await waitFor(() => {
       expect(getValueLabel()).toHaveTextContent("0.00");
-      expect(clampToggle).not.toBeChecked();
+      expect(clampToggle).toHaveAttribute("aria-pressed", "false");
     });
 
     expect(sliderRow.className).toBe("mb-4");
@@ -92,7 +92,9 @@ describe("Slider clamp integration", () => {
     );
 
     await user.click(clampToggle);
-    await waitFor(() => expect(clampToggle).toBeChecked());
+    await waitFor(() =>
+      expect(clampToggle).toHaveAttribute("aria-pressed", "true")
+    );
 
     fireEvent.mouseDown(slider);
     fireEvent.input(slider, { target: { value: "25" } });
@@ -108,6 +110,6 @@ describe("Slider clamp integration", () => {
       expect(getValueLabel()).toHaveTextContent("25.00");
     });
 
-    expect(clampToggle).toBeChecked();
+    expect(clampToggle).toHaveAttribute("aria-pressed", "true");
   });
 });
