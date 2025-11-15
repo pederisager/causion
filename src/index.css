@@ -245,7 +245,7 @@ body.phone-ui-mode {
   overflow-y: auto;
   max-width: none !important;
   padding-right: 0 !important;
-  padding-bottom: 5rem;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   flex: 1 1 auto;
   min-height: 0;
 }
@@ -267,6 +267,7 @@ body.phone-ui-mode {
 
 .phone-layout--portrait .phone-pane--panels {
   flex: 1 1 50%;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 6rem);
 }
 
 .dag-zone {
@@ -322,10 +323,22 @@ body.phone-ui-mode {
 }
 
 .phone-apply-dock {
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
-  margin-top: auto;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  padding: 0 1rem;
+}
+
+.phone-apply-dock__inner {
+  padding: 0.75rem;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  pointer-events: auto;
+  width: min(420px, 100%);
 }
 
 .phone-data-viz {

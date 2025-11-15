@@ -673,14 +673,18 @@ export function createApp(overrides = {}) {
       ? h(
           "div",
           {
-            className: joinClasses(
-              "phone-apply-dock p-3",
-              isCausion
-                ? "causion-panel"
-                : "rounded-2xl shadow border bg-white"
-            ),
+            className: "phone-apply-dock",
           },
-          renderApplyButton("dock")
+          h(
+            "div",
+            {
+              className: joinClasses(
+                "phone-apply-dock__inner",
+                isCausion ? "causion-panel" : "rounded-2xl shadow border bg-white"
+              ),
+            },
+            renderApplyButton("dock")
+          )
         )
       : null;
 
