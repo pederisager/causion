@@ -318,6 +318,7 @@ export function useNodeGraph({
   displayValues,
   ranges,
   interventions,
+  controlledVars,
   edgeHot,
   graphSignature,
   reactFlow,
@@ -404,8 +405,17 @@ export function useNodeGraph({
   }, [eqs, allVars, features.layoutFreeform, features.stylePreset, setNodes]);
 
   useEffect(() => {
-    setNodes((prev) => applyNodeData(prev, displayValues, ranges, features.stylePreset, interventions));
-  }, [displayValues, ranges, features.stylePreset, interventions, setNodes]);
+    setNodes((prev) =>
+      applyNodeData(
+        prev,
+        displayValues,
+        ranges,
+        features.stylePreset,
+        interventions,
+        controlledVars
+      )
+    );
+  }, [displayValues, ranges, features.stylePreset, interventions, controlledVars, setNodes]);
 
   const baseEdgeType = features.causalFlow
     ? "causal"

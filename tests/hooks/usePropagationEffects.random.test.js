@@ -33,6 +33,32 @@ function createHookHarness(onUpdate, featureOverrides = {}) {
   };
 }
 
+function createHookHarnessFromScm(scmText, onUpdate, featureOverrides = {}) {
+  const baseFeatures = {
+    causalFlow: false,
+    ephemeralClamp: false,
+    causalLagMs: 0,
+    flowPulseMs: 0,
+  };
+
+  return function HookHarness() {
+    const { model, allVars } = parseSCM(scmText);
+    const eqs = depsFromModel(model);
+    const hook = usePropagationEffects({
+      model,
+      eqs,
+      allVars,
+      features: { ...baseFeatures, ...featureOverrides },
+    });
+
+    useLayoutEffect(() => {
+      onUpdate(hook);
+    });
+
+    return null;
+  };
+}
+
 describe("usePropagationEffects – random mode", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -250,6 +276,86 @@ describe("usePropagationEffects – random mode", () => {
     expect(latest.interventions.A).toBe(true);
     expect(latest.values.A).toBe(valueWhileRandom);
     expect(latest.displayValues.A).toBe(valueWhileRandom);
+
+    unmount();
+  });
+
+  it("pauses, resumes, and resets assignments globally", async () => {
+    vi.useFakeTimers();
+
+    const raf = vi
+      .spyOn(globalThis, "requestAnimationFrame")
+      .mockImplementation((cb) => setTimeout(() => cb(performance.now()), 16));
+    const cancelRaf = vi
+      .spyOn(globalThis, "cancelAnimationFrame")
+      .mockImplementation((id) => clearTimeout(id));
+
+    let latest;
+    const handleUpdate = (hookState) => {
+      latest = hookState;
+    };
+
+    const Harness = createHookHarnessFromScm("A = 0\nB = 0", handleUpdate);
+    const { unmount } = render(React.createElement(Harness));
+
+    await act(async () => {
+      latest.toggleAutoPlay("A");
+      latest.toggleRandomPlay("B");
+    });
+
+    expect(latest.autoPlay.A).toBe(true);
+    expect(latest.randomPlay.B).toBe(true);
+
+    await act(async () => {
+      latest.toggleAssignmentsPaused();
+    });
+
+    expect(latest.isAssignmentsPaused).toBe(true);
+    expect(latest.autoPlay.A).toBe(true);
+    expect(latest.randomPlay.B).toBe(true);
+
+    const pausedValueA = latest.values.A;
+    const pausedValueB = latest.values.B;
+
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(latest.values.A).toBe(pausedValueA);
+    expect(latest.values.B).toBe(pausedValueB);
+
+    await act(async () => {
+      latest.toggleAssignmentsPaused();
+    });
+
+    expect(latest.isAssignmentsPaused).toBe(false);
+    expect(latest.autoPlay.A).toBe(true);
+    expect(latest.randomPlay.B).toBe(true);
+
+    await act(async () => {
+      latest.handleValueChange("A", 6);
+      latest.setClamp("A", true);
+      latest.handleRangeMinChange("A", -10);
+      latest.handleRangeMaxChange("A", 10);
+    });
+
+    await act(async () => {
+      latest.resetAssignments();
+    });
+
+    expect(latest.isAssignmentsPaused).toBe(false);
+    expect(latest.values.A).toBe(0);
+    expect(latest.values.B).toBe(0);
+    expect(latest.displayValues.A).toBe(0);
+    expect(latest.displayValues.B).toBe(0);
+    expect(latest.interventions.A).toBe(false);
+    expect(latest.autoPlay.A).toBe(false);
+    expect(latest.randomPlay.B).toBe(false);
+    expect(latest.ranges.A.min).toBe(-100);
+    expect(latest.ranges.A.max).toBe(100);
+
+    expect(raf).toHaveBeenCalled();
+    expect(cancelRaf).toHaveBeenCalled();
 
     unmount();
   });

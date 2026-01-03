@@ -77,7 +77,7 @@ function computeCausionFill(value, min, max) {
 }
 
 export default function CircleNode({ data }) {
-  const { id, value, min = -100, max = 100, stylePreset, doActive } = data || {};
+  const { id, value, min = -100, max = 100, stylePreset, doActive, isControlled } = data || {};
   const themePreset = getThemePreset(stylePreset);
   const rangeScale = Math.max(Math.abs(min), Math.abs(max));
 
@@ -92,6 +92,7 @@ export default function CircleNode({ data }) {
     userSelect: "none",
     textAlign: "center",
     padding: themePreset === "causion" ? 8 : 0,
+    overflow: "hidden",
     transition: "background-color 280ms ease, box-shadow 200ms ease, border-color 200ms ease",
   };
 
@@ -169,9 +170,27 @@ export default function CircleNode({ data }) {
       )
     : null;
 
+  const hatch = isControlled
+    ? React.createElement("div", {
+        "aria-hidden": true,
+        style: {
+          position: "absolute",
+          inset: 0,
+          borderRadius: "50%",
+          backgroundImage:
+            themePreset === "causion"
+              ? "repeating-linear-gradient(45deg, rgba(31,26,23,0.18) 0 6px, rgba(255,255,255,0.12) 6px 12px)"
+              : "repeating-linear-gradient(45deg, rgba(15,23,42,0.18) 0 6px, rgba(255,255,255,0.3) 6px 12px)",
+          opacity: 0.45,
+          pointerEvents: "none",
+        },
+      })
+    : null;
+
   return React.createElement(
     "div",
     { className: containerClassName, style: containerStyle },
+    hatch,
     badge,
     React.createElement("div", { style: labelStyle }, id),
     React.createElement("div", { style: valueStyle }, Number(value ?? 0).toFixed(2)),

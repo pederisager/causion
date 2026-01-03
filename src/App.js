@@ -54,6 +54,7 @@ export function createApp(overrides = {}) {
     const [isCheatSheetOpen, setIsCheatSheetOpen] = useState(false);
     const [forcePhoneLayout, setForcePhoneLayout] = useState(false);
     const [advancedOpenMap, setAdvancedOpenMap] = useState({});
+    const [controlledVars, setControlledVars] = useState([]);
     const { isPhoneLayout, orientation } = usePhoneLayout(forcePhoneLayout);
     const isPortrait = orientation !== "landscape";
     const joinClasses = (...classes) => classes.filter(Boolean).join(" ");
@@ -104,6 +105,7 @@ export function createApp(overrides = {}) {
       allVars,
       features,
     });
+    const isAssignmentsPaused = propagation.isAssignmentsPaused;
 
     const { nodes, edges, onNodesChange, onEdgesChange } = useNodeGraph({
       eqs,
@@ -113,6 +115,7 @@ export function createApp(overrides = {}) {
       displayValues: propagation.displayValues,
       ranges: propagation.ranges,
       interventions: propagation.interventions,
+      controlledVars,
       edgeHot: propagation.edgeHot,
       graphSignature,
       reactFlow,
@@ -222,7 +225,10 @@ export function createApp(overrides = {}) {
             : "bg-slate-100")
       );
 
-      const rowProps = { key: id, className: "mb-4" };
+      const rowProps = {
+        key: id,
+        className: joinClasses("mb-4", isAssignmentsPaused && "opacity-60"),
+      };
       if (isCausion) {
         rowProps["data-causion-slider"] = "";
       }
@@ -275,8 +281,12 @@ export function createApp(overrides = {}) {
                 className: slideBtnClass,
             title: "Toggle slide (triangle wave)",
             "aria-label": slideAriaLabel,
-            onClick: () => propagation.toggleAutoPlay(id),
+            onClick: () => {
+              if (isAssignmentsPaused) return;
+              propagation.toggleAutoPlay(id);
+            },
             "aria-pressed": isAuto,
+            disabled: isAssignmentsPaused,
           },
           isAuto ? "⏸" : "▶"
         ),
@@ -287,8 +297,12 @@ export function createApp(overrides = {}) {
                 className: randomBtnClass,
             title: "Toggle random (uniform draw)",
             "aria-label": randomAriaLabel,
-            onClick: () => propagation.toggleRandomPlay(id),
+            onClick: () => {
+              if (isAssignmentsPaused) return;
+              propagation.toggleRandomPlay(id);
+            },
             "aria-pressed": isRandom,
+            disabled: isAssignmentsPaused,
           },
           "🎲"
         ),
@@ -297,9 +311,9 @@ export function createApp(overrides = {}) {
               {
                 type: "button",
             className: doButtonClass,
-            disabled: isAuto,
+            disabled: isAuto || isAssignmentsPaused,
             onClick: () => {
-              if (isAuto) return;
+              if (isAuto || isAssignmentsPaused) return;
               propagation.setClamp(id, !isClamped);
             },
             "aria-pressed": isClamped,
@@ -314,12 +328,15 @@ export function createApp(overrides = {}) {
                 className: advancedToggleClass,
             title: "Adjust precise value and range",
             "aria-label": advancedAriaLabel,
-            onClick: () =>
+            onClick: () => {
+              if (isAssignmentsPaused) return;
               setAdvancedOpenMap((prev) => ({
                 ...prev,
-                    [id]: !prev[id],
-                  })),
+                [id]: !prev[id],
+              }));
+            },
                 "aria-expanded": isAdvancedOpen,
+                disabled: isAssignmentsPaused,
               },
               "⋯"
             )
@@ -340,6 +357,7 @@ export function createApp(overrides = {}) {
           onTouchStart: () => startDrag(id),
           onTouchEnd: (e) => finishDrag(id, Number(e.target.value)),
           onBlur: (e) => finishDrag(id, Number(e.target.value)),
+          disabled: isAssignmentsPaused,
         }),
         isCausion ? h("div", { className: "ticks" }) : null,
         isAdvancedOpen
@@ -365,6 +383,7 @@ export function createApp(overrides = {}) {
                   step: 1,
                   value: sliderValue,
                   onChange: (e) => propagation.handleValueChange(id, Number(e.target.value)),
+                  disabled: isAssignmentsPaused,
                 })
               ),
               h(
@@ -379,6 +398,7 @@ export function createApp(overrides = {}) {
                     className: rangeFieldClass,
                     value: range.min,
                     onChange: (e) => propagation.handleRangeMinChange(id, Number(e.target.value)),
+                    disabled: isAssignmentsPaused,
                   })
                 ),
                 h(
@@ -390,6 +410,7 @@ export function createApp(overrides = {}) {
                     className: rangeFieldClass,
                     value: range.max,
                     onChange: (e) => propagation.handleRangeMaxChange(id, Number(e.target.value)),
+                    disabled: isAssignmentsPaused,
                   })
                 )
               )
@@ -571,18 +592,54 @@ export function createApp(overrides = {}) {
         : null
     );
 
+    const pauseAssignmentsLabel = isAssignmentsPaused ? "Resume ▶︎" : "Pause ❚❚";
+    const assignmentControlButtonClass = joinClasses(
+      isCausion ? "btn-outline text-[0.7rem] tracking-[0.12em]" : "px-2 py-1 rounded border text-xs"
+    );
+    const pauseButtonClass = joinClasses(
+      assignmentControlButtonClass,
+      isAssignmentsPaused && (isCausion ? "is-active" : "bg-amber-100")
+    );
+
     const assignPanel = h(
       "div",
       { className: panelBaseClass },
       h(
         "div",
-        {
-          className: joinClasses(
-            panelHeadingClass,
-            isCausion ? "tracking-[0.08em]" : "mb-2"
+        { className: joinClasses("flex items-center justify-between gap-3", !isCausion && "mb-2") },
+        h(
+          "div",
+          {
+            className: joinClasses(
+              panelHeadingClass,
+              isCausion ? "tracking-[0.08em]" : ""
+            ),
+          },
+          "Assign Values"
+        ),
+        h(
+          "div",
+          { className: "flex items-center gap-2 shrink-0" },
+          h(
+            "button",
+            {
+              type: "button",
+              className: pauseButtonClass,
+              onClick: () => propagation.toggleAssignmentsPaused(),
+              "aria-pressed": isAssignmentsPaused,
+            },
+            pauseAssignmentsLabel
           ),
-        },
-        "Assign Values"
+          h(
+            "button",
+            {
+              type: "button",
+              className: assignmentControlButtonClass,
+              onClick: () => propagation.resetAssignments(),
+            },
+            "Reset ⟲"
+          )
+        )
       ),
       ...sliderRows
     );
@@ -799,6 +856,8 @@ export function createApp(overrides = {}) {
           themePreset,
           isPhoneLayout,
           orientation,
+          controlledVars,
+          onControlledVarsChange: setControlledVars,
         })
       )
     );

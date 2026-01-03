@@ -9,8 +9,22 @@ import {
 
 const DEFAULT_RANGE = { min: -100, max: 100 };
 
-function buildActiveClampMap(allVars, interventions, autoPlay, randomPlay, dragging, features) {
+function buildActiveClampMap(
+  allVars,
+  interventions,
+  autoPlay,
+  randomPlay,
+  dragging,
+  features,
+  pauseAll = false
+) {
   const out = {};
+  if (pauseAll) {
+    for (const id of allVars) {
+      out[id] = true;
+    }
+    return out;
+  }
   const useEphemeral = !!(features && features.ephemeralClamp);
   for (const id of allVars) {
     out[id] =
@@ -101,6 +115,7 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
   const [randomPlay, setRandomPlay] = useState({});
   const [dragging, setDragging] = useState({});
   const [edgeHot, setEdgeHot] = useState({});
+  const [isAssignmentsPaused, setIsAssignmentsPaused] = useState(false);
 
   const directChangedRef = useRef({});
   const lastValuesRef = useRef({});
@@ -111,10 +126,52 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
   const rafRef = useRef(null);
   const randomTimersRef = useRef(new Map());
   const randomPlayRef = useRef({});
+  const autoPlayRef = useRef({});
+  const isPausedRef = useRef(false);
   const rangesRef = useRef({});
   const prevAutoPlayRef = useRef({});
   const prevRandomPlayRef = useRef({});
   const prevInterventionsRef = useRef({});
+
+  const buildFlagMap = useCallback(
+    (source = {}) => {
+      const next = {};
+      for (const id of allVars) {
+        next[id] = !!source[id];
+      }
+      return next;
+    },
+    [allVars]
+  );
+
+  const buildRangeMap = useCallback(() => {
+    const next = {};
+    for (const id of allVars) {
+      next[id] = { ...DEFAULT_RANGE };
+    }
+    return next;
+  }, [allVars]);
+
+  const buildAutoStartMap = useCallback(
+    (source = {}) => {
+      const now = performance?.now?.() ?? Date.now();
+      const next = {};
+      for (const id of allVars) {
+        if (source[id]) {
+          const range = rangesRef.current?.[id] || DEFAULT_RANGE;
+          const span = range.max - range.min || 1;
+          const current = Number(lastValuesRef.current?.[id] ?? 0);
+          const normalized = (current - range.min) / span;
+          const p0 = Math.max(0, Math.min(1, normalized / 2));
+          next[id] = { t0: now, p0 };
+        } else {
+          next[id] = { t0: now, p0: 0 };
+        }
+      }
+      return next;
+    },
+    [allVars]
+  );
 
   const parentToChildren = useMemo(() => {
     const map = new Map();
@@ -217,6 +274,14 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
   }, [randomPlay]);
 
   useEffect(() => {
+    autoPlayRef.current = autoPlay;
+  }, [autoPlay]);
+
+  useEffect(() => {
+    isPausedRef.current = isAssignmentsPaused;
+  }, [isAssignmentsPaused]);
+
+  useEffect(() => {
     rangesRef.current = ranges;
   }, [ranges]);
 
@@ -305,8 +370,17 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
   }, [interventions]);
 
   const activeClamp = useMemo(
-    () => buildActiveClampMap(allVars, interventions, autoPlay, randomPlay, dragging, features),
-    [allVars, interventions, autoPlay, randomPlay, dragging, features]
+    () =>
+      buildActiveClampMap(
+        allVars,
+        interventions,
+        autoPlay,
+        randomPlay,
+        dragging,
+        features,
+        isAssignmentsPaused
+      ),
+    [allVars, interventions, autoPlay, randomPlay, dragging, features, isAssignmentsPaused]
   );
 
   useEffect(() => {
@@ -326,7 +400,7 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
   useEffect(() => {
     const ids = Object.keys(autoPlay);
     const anyAuto = ids.some((id) => autoPlay[id]);
-    if (!anyAuto) return;
+    if (!anyAuto || isAssignmentsPaused) return;
 
     const tick = () => {
       const now = performance?.now?.() ?? Date.now();
@@ -353,7 +427,7 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };
-  }, [autoPlay, autoStart, ranges, allVars]);
+  }, [autoPlay, autoStart, ranges, allVars, isAssignmentsPaused]);
 
   useEffect(() => {
     const last = lastValuesRef.current;
@@ -504,16 +578,27 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
   );
 
   const handleValueChange = useCallback(
-    (id, raw) => applyValue(id, raw, { syncAutoPhase: true }),
+    (id, raw) => {
+      if (isPausedRef.current) return;
+      applyValue(id, raw, { syncAutoPhase: true });
+    },
     [applyValue]
   );
 
   const handleValueCommit = useCallback(
-    (id, raw) => applyValue(id, raw),
+    (id, raw) => {
+      if (isPausedRef.current) return;
+      applyValue(id, raw);
+    },
     [applyValue]
   );
 
   useEffect(() => {
+    if (isAssignmentsPaused) {
+      randomTimersRef.current.forEach((timer) => clearTimeout(timer));
+      randomTimersRef.current.clear();
+      return;
+    }
     const timers = randomTimersRef.current;
 
     timers.forEach((_, id) => {
@@ -561,10 +646,11 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
 
       tick();
     }
-  }, [randomPlay, applyValue, clearRandomTimer, removePendingTimer]);
+  }, [randomPlay, applyValue, clearRandomTimer, removePendingTimer, isAssignmentsPaused]);
 
   const handleRangeMinChange = useCallback(
     (id, raw) => {
+      if (isPausedRef.current) return;
       const current = ranges[id] || DEFAULT_RANGE;
       let min = Number(raw);
       if (!Number.isFinite(min)) min = current.min;
@@ -592,6 +678,7 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
 
   const handleRangeMaxChange = useCallback(
     (id, raw) => {
+      if (isPausedRef.current) return;
       const current = ranges[id] || DEFAULT_RANGE;
       let max = Number(raw);
       if (!Number.isFinite(max)) max = current.max;
@@ -619,6 +706,7 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
 
   const toggleAutoPlay = useCallback(
     (id) => {
+      if (isPausedRef.current) return;
       setAutoPlay((prev) => {
         const wasActive = !!prev[id];
         const next = { ...prev, [id]: !wasActive };
@@ -639,6 +727,7 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
 
   const toggleRandomPlay = useCallback(
     (id) => {
+      if (isPausedRef.current) return;
       setRandomPlay((prev) => {
         const wasActive = !!prev[id];
         const nextActive = !wasActive;
@@ -659,6 +748,7 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
 
   const setClamp = useCallback(
     (id, value) => {
+      if (isPausedRef.current) return;
       if (value) {
         setRandomPlay((prevRandom) => {
           if (!prevRandom[id]) return prevRandom;
@@ -676,12 +766,59 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
   );
 
   const handleDragStart = useCallback((id) => {
+    if (isPausedRef.current) return;
     setDragging((prev) => ({ ...prev, [id]: true }));
   }, []);
 
   const handleDragEnd = useCallback((id) => {
+    if (isPausedRef.current) return;
     setDragging((prev) => ({ ...prev, [id]: false }));
   }, []);
+
+  const toggleAssignmentsPaused = useCallback(() => {
+    setIsAssignmentsPaused((prev) => {
+      const next = !prev;
+      if (next) {
+        setDragging(buildFlagMap());
+      } else {
+        setAutoStart(buildAutoStartMap(autoPlayRef.current));
+      }
+      return next;
+    });
+  }, [buildAutoStartMap, buildFlagMap]);
+
+  const resetAssignments = useCallback(() => {
+    setIsAssignmentsPaused(false);
+    isPausedRef.current = false;
+
+    clearPendingTimers(pendingTimersRef.current, nodeUpdateTimersRef.current, edgeTimersRef.current);
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    randomTimersRef.current.forEach((timer) => clearTimeout(timer));
+    randomTimersRef.current.clear();
+
+    const resetValues = {};
+    for (const id of allVars) {
+      resetValues[id] = 0;
+    }
+
+    const resetFlags = buildFlagMap();
+    setValues(resetValues);
+    setDisplayValues(resetValues);
+    setInterventions(resetFlags);
+    setRanges(buildRangeMap());
+    setAutoPlay(resetFlags);
+    setRandomPlay(resetFlags);
+    setDragging(resetFlags);
+    setAutoStart(buildAutoStartMap(resetFlags));
+    setEdgeHot({});
+    directChangedRef.current = {};
+    prevAutoPlayRef.current = {};
+    prevRandomPlayRef.current = {};
+    prevInterventionsRef.current = {};
+  }, [allVars, buildAutoStartMap, buildFlagMap, buildRangeMap]);
 
   return {
     values,
@@ -692,6 +829,7 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
     randomPlay,
     dragging,
     edgeHot,
+    isAssignmentsPaused,
     toggleAutoPlay,
     toggleRandomPlay,
     setClamp,
@@ -701,6 +839,8 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
     handleRangeMaxChange,
     handleDragStart,
     handleDragEnd,
+    toggleAssignmentsPaused,
+    resetAssignments,
   };
 }
 

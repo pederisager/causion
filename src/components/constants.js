@@ -2,6 +2,12 @@ export const NODE_WIDTH = 120;
 export const NODE_HEIGHT = 120;
 export const RANK_SEPARATION = 160;
 export const NODE_SEPARATION = 40;
+export const LAYOUT_CONFIG = {
+  ranksep: RANK_SEPARATION,
+  nodesep: NODE_SEPARATION,
+  edgeCurve: "smoothstep",
+  edgeOffsetStep: 12,
+};
 export const DEFAULT_FEATURE_FLAGS = {
   ephemeralClamp: true,
   edgeStraightening: true,

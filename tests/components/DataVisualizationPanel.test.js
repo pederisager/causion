@@ -3,11 +3,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, fireEvent, act } from "@testing-library/react";
 import DataVisualizationPanel from "../../src/components/panels/DataVisualizationPanel.js";
 
-function renderPanel(allVars, values) {
+function renderPanel(allVars, values, extraProps = {}) {
   return render(
     React.createElement(DataVisualizationPanel, {
       allVars,
       values,
+      ...extraProps,
     })
   );
 }
@@ -38,7 +39,27 @@ describe("DataVisualizationPanel", () => {
 
     expect(getByRole("combobox", { name: /x axis/i })).toBeInTheDocument();
     expect(getByRole("combobox", { name: /y axis/i })).toBeInTheDocument();
+    expect(getByRole("combobox", { name: /regression line/i })).toBeInTheDocument();
     expect(getByText(/points update/i)).toBeInTheDocument();
+  });
+
+  it("allows selecting control variables", () => {
+    const handleControls = vi.fn();
+    const { getByRole, getByLabelText } = renderPanel(
+      allVars,
+      { A: 0, B: 0, C: 0 },
+      { controlledVars: [], onControlledVarsChange: handleControls }
+    );
+
+    fireEvent.click(getByRole("button", { name: /visualize data/i }));
+
+    const dropdown = getByRole("button", { name: /select/i });
+    fireEvent.click(dropdown);
+
+    const checkbox = getByLabelText("C");
+    fireEvent.click(checkbox);
+
+    expect(handleControls).toHaveBeenCalledWith(["C"]);
   });
 
   it("records samples only when tracked values change", () => {

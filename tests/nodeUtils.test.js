@@ -44,3 +44,17 @@ test('applyNodeData updates min and max when range changes', () => {
   assert.equal(result[0].data.min, -4);
   assert.equal(result[0].data.max, 8);
 });
+
+test('applyNodeData marks controlled nodes when provided', () => {
+  const nodes = [
+    { id: 'A', data: { id: 'A', value: 0, min: -10, max: 10 } },
+    { id: 'B', data: { id: 'B', value: 1, min: -10, max: 10 } },
+  ];
+  const display = { A: 0, B: 1 };
+  const ranges = { A: { min: -10, max: 10 }, B: { min: -10, max: 10 } };
+
+  const result = applyNodeData(nodes, display, ranges, 'causion', null, ['B']);
+
+  assert.equal(result[0].data.isControlled, false);
+  assert.equal(result[1].data.isControlled, true);
+});

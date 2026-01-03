@@ -6,6 +6,11 @@ import React, {
 } from "react";
 
 import { SCATTER_SAMPLE_INTERVAL_MS } from "../constants.js";
+import {
+  buildLinearLine,
+  buildLoessLine,
+  computeResidualizedSamples,
+} from "../../utils/regressionUtils.js";
 
 function detectThemePreset(explicitPreset) {
   if (explicitPreset) return explicitPreset;
@@ -38,7 +43,7 @@ function normalizeDomain([min, max]) {
   return [min - pad, max + pad];
 }
 
-function ScatterPlot({ samples, xLabel, yLabel, themePreset }) {
+function ScatterPlot({ samples, xLabel, yLabel, themePreset, linePoints }) {
   const width = 260;
   const height = 200;
   const margin = { top: 16, right: 16, bottom: 36, left: 44 };
@@ -49,6 +54,7 @@ function ScatterPlot({ samples, xLabel, yLabel, themePreset }) {
   const axisColor = isCausion ? "var(--color-ink-line)" : "#0f172a";
   const pointFill = isCausion ? "var(--color-ink-line)" : "#0ea5e9";
   const pointStroke = isCausion ? "var(--color-bg-panel)" : "white";
+  const lineStroke = isCausion ? "var(--color-text)" : "#f97316";
 
   const xs = samples.map((sample) => sample.x);
   const ys = samples.map((sample) => sample.y);
@@ -78,6 +84,12 @@ function ScatterPlot({ samples, xLabel, yLabel, themePreset }) {
       (1 - (value - min) / (max - min)) * innerHeight
     );
   };
+
+  const linePath = linePoints && linePoints.length > 1
+    ? linePoints
+        .map((point) => `${scaleX(point.x)},${scaleY(point.y)}`)
+        .join(" ")
+    : null;
 
   return React.createElement(
     "div",
@@ -122,6 +134,14 @@ function ScatterPlot({ samples, xLabel, yLabel, themePreset }) {
         stroke: axisColor,
         strokeWidth: 1,
       }),
+      linePath
+        ? React.createElement("polyline", {
+            points: linePath,
+            fill: "none",
+            stroke: lineStroke,
+            strokeWidth: 2,
+          })
+        : null,
       samples.map((sample) =>
         React.createElement("circle", {
           key: sample.id ?? sample.timestamp,
@@ -177,6 +197,8 @@ export default function DataVisualizationPanel({
   themePreset,
   isPhoneLayout = false,
   orientation = "portrait",
+  controlledVars = [],
+  onControlledVarsChange = () => {},
 }) {
   const resolvedTheme = detectThemePreset(themePreset);
   const isCausion = resolvedTheme === "causion";
@@ -189,15 +211,35 @@ export default function DataVisualizationPanel({
   const [isActive, setIsActive] = useState(false);
   const [samples, setSamples] = useState([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(!isPhoneLayout);
+  const [isControlMenuOpen, setIsControlMenuOpen] = useState(false);
+  const [fitMode, setFitMode] = useState("none");
 
   const intervalRef = useRef(null);
   const lastAxesRef = useRef({ x: "", y: "" });
+  const lastControlsRef = useRef("");
   const valuesRef = useRef(values);
+  const controlsRef = useRef(controlledVars);
+  const controlMenuRef = useRef(null);
   const hasVariables = options.length > 0;
 
   useEffect(() => {
     valuesRef.current = values;
   }, [values]);
+
+  useEffect(() => {
+    controlsRef.current = controlledVars;
+  }, [controlledVars]);
+
+  useEffect(() => {
+    if (!Array.isArray(controlledVars)) return;
+    const allowed = new Set(options);
+    const filtered = controlledVars.filter((name) => allowed.has(name));
+    const signature = filtered.slice().sort().join("|");
+    const currentSignature = controlledVars.slice().sort().join("|");
+    if (signature !== currentSignature) {
+      onControlledVarsChange(filtered);
+    }
+  }, [controlledVars, onControlledVarsChange, options, x, y]);
 
   useEffect(() => {
     setIsDrawerOpen(!isPhoneLayout);
@@ -208,6 +250,25 @@ export default function DataVisualizationPanel({
       setIsDrawerOpen(true);
     }
   }, [isActive, isPhoneLayout]);
+
+  useEffect(() => {
+    if (!isActive) {
+      setIsControlMenuOpen(false);
+    }
+  }, [isActive]);
+
+  useEffect(() => {
+    if (!isControlMenuOpen) return undefined;
+    if (typeof document === "undefined") return undefined;
+    const handleClick = (event) => {
+      if (!controlMenuRef.current) return;
+      if (!controlMenuRef.current.contains(event.target)) {
+        setIsControlMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [isControlMenuOpen]);
 
   useEffect(() => {
     const defaults = getDefaultAxes(options);
@@ -237,6 +298,14 @@ export default function DataVisualizationPanel({
   }, [x, y]);
 
   useEffect(() => {
+    const signature = controlledVars.slice().sort().join("|");
+    if (signature !== lastControlsRef.current) {
+      setSamples([]);
+      lastControlsRef.current = signature;
+    }
+  }, [controlledVars]);
+
+  useEffect(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
@@ -247,16 +316,24 @@ export default function DataVisualizationPanel({
 
     const tick = () => {
       const latestValues = valuesRef.current || {};
-      const xVal = latestValues?.[x];
-      const yVal = latestValues?.[y];
-      if (!Number.isFinite(Number(xVal)) || !Number.isFinite(Number(yVal))) {
-        return;
+      const controlKeys = controlsRef.current || [];
+      const trackedKeys = Array.from(
+        new Set([x, y, ...controlKeys].filter(Boolean))
+      );
+      const sampleValues = {};
+      for (const key of trackedKeys) {
+        const rawValue = latestValues?.[key];
+        const numericValue = Number(rawValue);
+        if (!Number.isFinite(numericValue)) {
+          return;
+        }
+        sampleValues[key] = numericValue;
       }
-      const numericX = Number(xVal);
-      const numericY = Number(yVal);
+      const numericX = sampleValues[x];
+      const numericY = sampleValues[y];
       setSamples((prev) => {
         const last = prev[prev.length - 1];
-        if (last && last.x === numericX && last.y === numericY) {
+        if (last && last.rawX === numericX && last.rawY === numericY) {
           return prev;
         }
         const timestamp = Date.now();
@@ -271,8 +348,9 @@ export default function DataVisualizationPanel({
         return [
           ...prev,
           {
-            x: numericX,
-            y: numericY,
+            rawX: numericX,
+            rawY: numericY,
+            values: sampleValues,
             timestamp,
             id,
           },
@@ -311,6 +389,44 @@ export default function DataVisualizationPanel({
     setAxes((prev) => ({ ...prev, [axisKey]: nextValue }));
   };
 
+  const handleControlToggle = (name) => (event) => {
+    const next = new Set(controlledVars);
+    if (event.target.checked) {
+      next.add(name);
+    } else {
+      next.delete(name);
+    }
+    const ordered = options.filter((option) => next.has(option));
+    onControlledVarsChange(ordered);
+  };
+
+  const handleFitModeChange = (event) => {
+    setFitMode(event.target.value);
+  };
+
+  const controlOptions = useMemo(() => options, [options]);
+
+  const adjustedResult = useMemo(() => {
+    if (!x || !y) return { points: [], status: "invalid" };
+    return computeResidualizedSamples(samples, x, y, controlledVars);
+  }, [samples, x, y, controlledVars]);
+
+  const adjustedSamples = useMemo(() => {
+    return adjustedResult.points.filter(
+      (point) => Number.isFinite(point.x) && Number.isFinite(point.y)
+    );
+  }, [adjustedResult.points]);
+
+  const regressionLine = useMemo(() => {
+    if (fitMode === "linear") {
+      return buildLinearLine(adjustedSamples);
+    }
+    if (fitMode === "loess") {
+      return buildLoessLine(adjustedSamples);
+    }
+    return null;
+  }, [adjustedSamples, fitMode]);
+
   const visualizeBtnClass = joinClasses(
     isCausion
       ? isActive
@@ -328,6 +444,18 @@ export default function DataVisualizationPanel({
   const helperTextStyle = isCausion
     ? { color: "var(--color-text-muted)", fontFamily: "var(--font-body)" }
     : undefined;
+
+  const hasControls = controlledVars.length > 0;
+  const controlCountLabel = hasControls ? `${controlledVars.length} selected` : "None selected";
+  const needsControlAdjustment =
+    hasControls && adjustedResult.status !== "adjusted";
+  const adjustmentMessage = needsControlAdjustment
+    ? adjustedResult.status === "insufficient"
+      ? "Add more samples to adjust for controls."
+      : adjustedResult.status === "singular"
+      ? "Control adjustment failed (controls are collinear)."
+      : "Control adjustment unavailable for current inputs."
+    : null;
 
   const panelBody = React.createElement(
     React.Fragment,
@@ -407,6 +535,112 @@ export default function DataVisualizationPanel({
               )
             ),
             React.createElement(
+              "div",
+              { className: "mt-2" },
+              React.createElement(
+                "p",
+                {
+                  className: joinClasses("text-[0.7rem] uppercase tracking-[0.28em]", isCausion ? "" : "text-slate-500"),
+                  style: helperTextStyle,
+                },
+                "Control for variables"
+              ),
+              controlOptions.length
+                ? React.createElement(
+                    "div",
+                    {
+                      ref: controlMenuRef,
+                      className: "relative mt-2",
+                    },
+                    React.createElement(
+                      "button",
+                      {
+                        type: "button",
+                        onClick: () => setIsControlMenuOpen((prev) => !prev),
+                        "aria-expanded": isControlMenuOpen,
+                        "aria-haspopup": "listbox",
+                        className: joinClasses(
+                          "w-full flex items-center justify-between gap-2 text-xs px-2 py-1 rounded border",
+                          isCausion
+                            ? "border-[var(--color-ink-border)] text-[var(--color-text)]"
+                            : "border-slate-300 text-slate-700"
+                        ),
+                      },
+                      React.createElement(
+                        "span",
+                        null,
+                        controlCountLabel
+                      ),
+                      React.createElement(
+                        "span",
+                        {
+                          "aria-hidden": true,
+                          className: joinClasses(
+                            "text-[0.6rem] uppercase tracking-[0.2em]",
+                            isCausion ? "text-[var(--color-text-muted)]" : "text-slate-500"
+                          ),
+                        },
+                        isControlMenuOpen ? "Close" : "Select"
+                      )
+                    ),
+                    isControlMenuOpen
+                      ? React.createElement(
+                          "div",
+                          {
+                            role: "listbox",
+                            "aria-label": "Control variables",
+                            className: joinClasses(
+                              "absolute z-20 mt-2 w-full max-h-40 overflow-auto rounded border p-2 text-xs shadow-lg",
+                              isCausion
+                                ? "bg-[var(--color-bg-panel)] border-[var(--color-ink-border)]"
+                                : "bg-white border-slate-200"
+                            ),
+                          },
+                          controlOptions.map((option) =>
+                            React.createElement(
+                              "label",
+                              {
+                                key: option,
+                                className: "flex items-center gap-2 py-1",
+                              },
+                              React.createElement("input", {
+                                type: "checkbox",
+                                checked: controlledVars.includes(option),
+                                onChange: handleControlToggle(option),
+                                className: isCausion ? "accent-[var(--color-ink-line)]" : "accent-slate-800",
+                              }),
+                              option
+                            )
+                          )
+                        )
+                      : null
+                  )
+                : React.createElement(
+                    "p",
+                    {
+                      className: joinClasses("mt-2 text-xs", isCausion ? "" : "text-slate-500"),
+                      style: helperTextStyle,
+                    },
+                    "No additional variables available to control for."
+                  )
+            ),
+            React.createElement(
+              "label",
+              { className: "mt-2 flex flex-col gap-1 text-xs" },
+              "Regression line",
+              React.createElement(
+                "select",
+                {
+                  value: fitMode,
+                  onChange: handleFitModeChange,
+                  className: isCausion ? "causion-field text-sm" : "border rounded px-2 py-1 text-sm",
+                },
+                React.createElement("option", { value: "none" }, "Off"),
+                React.createElement("option", { value: "linear" }, "Linear"),
+                React.createElement("option", { value: "loess" }, "Loess")
+              )
+            ),
+            React.createElement(
               "p",
               {
                 className: joinClasses("text-xs", isCausion ? "" : "text-slate-500"),
@@ -414,11 +648,22 @@ export default function DataVisualizationPanel({
               },
               "Points update when either tracked variable changes."
             ),
+            adjustmentMessage
+              ? React.createElement(
+                  "p",
+                  {
+                    className: joinClasses("text-xs", isCausion ? "" : "text-amber-700"),
+                    style: helperTextStyle,
+                  },
+                  adjustmentMessage
+                )
+              : null,
             React.createElement(ScatterPlot, {
-              samples,
+              samples: adjustedSamples,
               xLabel: x,
               yLabel: y,
               themePreset: resolvedTheme,
+              linePoints: regressionLine,
             })
           )
         : React.createElement(
