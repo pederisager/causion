@@ -94,6 +94,19 @@ body.theme-causion .causion-node:focus {
   border-color: var(--color-ink-line);
 }
 
+body.theme-causion .react-flow__nodesselection-rect,
+body.theme-causion .react-flow__selection {
+  background: rgba(201, 194, 174, 0.18);
+  border: 1px dashed rgba(63, 58, 52, 0.45);
+}
+
+body.theme-causion .react-flow__nodesselection-rect:focus,
+body.theme-causion .react-flow__nodesselection-rect:focus-visible,
+body.theme-causion .react-flow__selection:focus,
+body.theme-causion .react-flow__selection:focus-visible {
+  outline: none;
+}
+
 /* Node value mapping (9 steps; interpolate in code if you prefer) */
 body.theme-causion .node-v--4 {
   --fill: #6e98ab;
