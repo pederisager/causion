@@ -8,21 +8,11 @@ import { evaluateExpression } from "./interpreter.js";
  * @param {Map<string, Set<string>>} eqs - Dependency map derived from the model.
  * @param {Record<string, number>} currentValues - Current node values before propagation.
  * @param {Record<string, boolean>} clampMap - Nodes that should remain fixed.
- * @param {{
- *   enabled?: boolean,
- *   byTarget?: Record<string, number>,
- *   byNode?: Record<string, number>,
- *   nodes?: Set<string>
- * } | null} noiseState - Optional noise mapping to inject per node.
  * @returns {Record<string, number>} A new object with propagated values.
  */
-export function computeValues(model, eqs, currentValues, clampMap = {}, noiseState = null) {
+export function computeValues(model, eqs, currentValues, clampMap = {}) {
   const order = topoSort(eqs);
   const next = { ...currentValues };
-  const noiseEnabled = !!noiseState?.enabled;
-  const noiseByTarget = noiseState?.byTarget || {};
-  const noiseByNode = noiseState?.byNode || {};
-  const noiseNodes = noiseState?.nodes || new Set();
   const scope = new Proxy(next, {
     has(target, key) {
       if (typeof key === "symbol") return key in target;
@@ -38,39 +28,25 @@ export function computeValues(model, eqs, currentValues, clampMap = {}, noiseSta
     },
   });
 
-  if (noiseEnabled) {
-    for (const [noiseId, noiseValue] of Object.entries(noiseByNode)) {
-      next[noiseId] = noiseValue;
-    }
-  }
-
   for (const node of order) {
     if (next[node] == null) {
       next[node] = 0;
     }
-    if (noiseEnabled && noiseNodes.has(node)) {
-      continue;
-    }
     if (clampMap[node]) continue;
     const spec = model.get(node);
-    let baseValue = next[node];
     if (!spec || !spec.ast) {
       if (spec?.derived) {
-        baseValue = 0;
+        next[node] = 0;
       }
-    } else {
-      try {
-        baseValue = evaluateExpression(spec.ast, scope);
-      } catch (error) {
-        const message = error?.message || String(error);
-        const source = spec.source || "expression";
-        throw new Error(`Error evaluating ${node} = ${source}: ${message}`, { cause: error });
-      }
+      continue;
     }
-    if (noiseEnabled && Object.prototype.hasOwnProperty.call(noiseByTarget, node)) {
-      baseValue += noiseByTarget[node];
+    try {
+      next[node] = evaluateExpression(spec.ast, scope);
+    } catch (error) {
+      const message = error?.message || String(error);
+      const source = spec.source || "expression";
+      throw new Error(`Error evaluating ${node} = ${source}: ${message}`, { cause: error });
     }
-    next[node] = baseValue;
   }
 
   return next;
@@ -91,15 +67,7 @@ export function shallowEqualObj(a, b) {
   const keysB = Object.keys(b);
   if (keysA.length !== keysB.length) return false;
   for (const key of keysA) {
-    const valA = a[key];
-    const valB = b[key];
-    if (valA === valB) continue;
-    if (typeof valA === "number" && typeof valB === "number") {
-      if (Number.isNaN(valA) && Number.isNaN(valB)) {
-        continue;
-      }
-    }
-    return false;
+    if (a[key] !== b[key]) return false;
   }
   return true;
 }

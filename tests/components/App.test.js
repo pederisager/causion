@@ -40,19 +40,4 @@ describe("App", () => {
     expect(clampToggle).toHaveAttribute("aria-pressed", "true");
     expect(randomButton).toBeEnabled();
   });
-
-  it("toggles noise controls on demand", () => {
-    const { createApp } = __TEST_ONLY__;
-    const { App } = createApp(reactFlowBridgeStub);
-
-    renderWithProviders(React.createElement(App));
-
-    const slider = screen.getByRole("slider", { name: /noise amount/i });
-    expect(slider).toBeDisabled();
-
-    const toggle = screen.getByRole("checkbox", { name: /toggle noise/i });
-    fireEvent.click(toggle);
-
-    expect(slider).toBeEnabled();
-  });
 });

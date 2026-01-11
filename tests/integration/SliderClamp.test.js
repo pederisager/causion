@@ -66,8 +66,6 @@ describe("Slider clamp integration", () => {
     expect(clampToggle).toHaveAttribute("aria-pressed", "false");
     expect(sliderRow).toHaveClass("mb-4");
     expect(sliderRow).not.toHaveClass("is-clamped");
-    fireEvent.input(slider, { target: { value: "15" } });
-    expect(getValueLabel()).toHaveTextContent("0.00");
     fireEvent.mouseDown(slider);
     fireEvent.input(slider, { target: { value: "30" } });
 

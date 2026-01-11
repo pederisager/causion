@@ -19,7 +19,6 @@ export default function CausalEdge({
   targetY,
   data,
 }) {
-  const safeId = String(id).replace(/[^a-zA-Z0-9_-]/g, "_");
   const [edgePath, labelX, labelY] = getStraightPath({ sourceX, sourceY, targetX, targetY });
   const disabledByDo = Boolean(data?.disabledByDo);
   const hot = disabledByDo ? false : Boolean(data?.hot);
@@ -69,7 +68,7 @@ export default function CausalEdge({
       ? React.createElement(
           "marker",
           {
-            id: `arrow-${safeId}`,
+            id: `arrow-${id}`,
             markerWidth: 10,
             markerHeight: 10,
             refX: 8,
@@ -90,7 +89,7 @@ export default function CausalEdge({
       : React.createElement(
           "marker",
           {
-            id: `arrow-${safeId}`,
+            id: `arrow-${id}`,
             markerWidth: "10",
             markerHeight: "10",
             refX: "9",
@@ -112,7 +111,7 @@ export default function CausalEdge({
     fill: "none",
     stroke: "transparent",
     strokeWidth: themePreset === "causion" ? chilledStroke : 2,
-    markerEnd: `url(#arrow-${safeId})`,
+    markerEnd: `url(#arrow-${id})`,
   });
 
   const themeClass = themePreset === "causion" ? "edge-label--causion" : "edge-label--minimal";

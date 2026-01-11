@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
-  applyNodeChanges,
   MarkerType,
   useEdgesState,
   useNodesState,
@@ -8,12 +7,10 @@ import {
 import { applyNodeData } from "../utils/nodeUtils.js";
 import { applyEdgeVisualState } from "../utils/edgeUtils.js";
 import { deriveEffectLabel } from "../utils/effectLabels.js";
-import { buildNoiseLabel, getNoiseTargetId } from "../utils/noiseUtils.js";
 import {
   NODE_HEIGHT,
   NODE_SEPARATION,
   NODE_WIDTH,
-  NOISE_NODE_SIZE,
   RANK_SEPARATION,
 } from "../components/constants.js";
 
@@ -292,11 +289,9 @@ function pickHandleFromDelta(dx, dy) {
 }
 
 function nodeCenter(node) {
-  const isNoise = !!node?.data?.isNoise;
-  const size = isNoise ? NOISE_NODE_SIZE : NODE_W;
   return {
-    x: node.position.x + size / 2,
-    y: node.position.y + size / 2,
+    x: node.position.x + NODE_W / 2,
+    y: node.position.y + NODE_H / 2,
   };
 }
 
@@ -318,7 +313,6 @@ function mapHandleId(code, kind) {
 export function useNodeGraph({
   eqs,
   allVars,
-  noiseNodes = new Set(),
   features,
   model,
   displayValues,
@@ -329,7 +323,7 @@ export function useNodeGraph({
   graphSignature,
   reactFlow,
 }) {
-  const [nodes, setNodes] = useNodesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
   const nodesRef = useRef([]);
@@ -353,27 +347,12 @@ export function useNodeGraph({
     }
 
     const ids = [...allVars];
-    const noiseSet = noiseNodes || new Set();
-    const baseIds = noiseSet.size ? ids.filter((id) => !noiseSet.has(id)) : ids;
-    let layoutEqs = eqs;
-    if (!features.layoutFreeform && noiseSet.size) {
-      layoutEqs = new Map();
-      for (const [child, parents] of eqs) {
-        if (noiseSet.has(child)) continue;
-        const nextParents = new Set();
-        for (const parent of parents || []) {
-          if (!noiseSet.has(parent)) nextParents.add(parent);
-        }
-        layoutEqs.set(child, nextParents);
-      }
-    }
-    const positions = features.layoutFreeform ? null : layoutLeftRight(layoutEqs, baseIds);
+    const positions = features.layoutFreeform ? null : layoutLeftRight(eqs, allVars);
 
     setNodes((prev) => {
       const prevMap = new Map(prev.map((n) => [n.id, n]));
       let mutated = prev.length !== ids.length;
-      const desiredPositions = new Map();
-      baseIds.forEach((id, index) => {
+      const next = ids.map((id, index) => {
         const prevNode = prevMap.get(id);
         const fallbackPos = { x: 120 + index * 160, y: 160 + index * 40 };
         const desiredPosition =
@@ -381,43 +360,11 @@ export function useNodeGraph({
           positions?.[id] ||
           prevNode?.position ||
           fallbackPos;
-        desiredPositions.set(id, desiredPosition);
-      });
-
-      const noiseOffsetY = Math.round(NOISE_NODE_SIZE + 24);
-      const next = ids.map((id, index) => {
-        const prevNode = prevMap.get(id);
-        const isNoise = noiseNodes?.has(id);
-        const desiredType = isNoise ? "noise" : "circle";
-        const desiredDraggable = !isNoise;
-        const noiseLabel = isNoise ? buildNoiseLabel(id) : undefined;
-        const fallbackPos = { x: 120 + index * 160, y: 160 + index * 40 };
-        let desiredPosition = desiredPositions.get(id);
-        if (isNoise) {
-          const targetId = getNoiseTargetId(id);
-          const targetPos =
-            desiredPositions.get(targetId) ||
-            prevMap.get(targetId)?.position ||
-            positions?.[targetId];
-          if (targetPos) {
-            desiredPosition = {
-              x: targetPos.x + NODE_WIDTH / 2 - NOISE_NODE_SIZE / 2,
-              y: targetPos.y - noiseOffsetY,
-            };
-          }
-        }
-        if (!desiredPosition) {
-          desiredPosition =
-            (features.layoutFreeform && prevNode ? prevNode.position : undefined) ||
-            positions?.[id] ||
-            prevNode?.position ||
-            fallbackPos;
-        }
 
         if (prevNode) {
           let node = prevNode;
-          if (prevNode.type !== desiredType || prevNode.draggable !== desiredDraggable) {
-            node = { ...node, type: desiredType, draggable: desiredDraggable };
+          if (prevNode.type !== "circle" || prevNode.draggable !== true) {
+            node = { ...node, type: "circle", draggable: true };
             mutated = true;
           }
           if (
@@ -431,28 +378,13 @@ export function useNodeGraph({
           if (!node.data) {
             node = {
               ...node,
-              data: {
-                id,
-                value: 0,
-                min: -100,
-                max: 100,
-                stylePreset: features.stylePreset,
-                ...(isNoise ? { label: noiseLabel, isNoise: true } : {}),
-              },
+              data: { id, value: 0, min: -100, max: 100, stylePreset: features.stylePreset },
             };
             mutated = true;
-          } else if (
-            node.data.stylePreset !== features.stylePreset ||
-            (!!node.data.isNoise !== isNoise) ||
-            (isNoise && node.data.label !== noiseLabel)
-          ) {
+          } else if (node.data.stylePreset !== features.stylePreset) {
             node = {
               ...node,
-              data: {
-                ...node.data,
-                stylePreset: features.stylePreset,
-                ...(isNoise ? { label: noiseLabel, isNoise: true } : { isNoise: false }),
-              },
+              data: { ...node.data, stylePreset: features.stylePreset },
             };
             mutated = true;
           }
@@ -462,58 +394,15 @@ export function useNodeGraph({
         mutated = true;
         return {
           id,
-          type: desiredType,
+          type: "circle",
           position: desiredPosition,
-          data: {
-            id,
-            value: 0,
-            min: -100,
-            max: 100,
-            stylePreset: features.stylePreset,
-            ...(isNoise ? { label: noiseLabel, isNoise: true } : {}),
-          },
-          draggable: desiredDraggable,
+          data: { id, value: 0, min: -100, max: 100, stylePreset: features.stylePreset },
+          draggable: true,
         };
       });
       return mutated ? next : prev;
     });
-  }, [eqs, allVars, noiseNodes, features.layoutFreeform, features.stylePreset, setNodes]);
-
-  const onNodesChange = useCallback(
-    (changes) => {
-      if (!noiseNodes || noiseNodes.size === 0) {
-        setNodes((prev) => applyNodeChanges(changes, prev));
-        return;
-      }
-      const noiseOffsetY = Math.round(NOISE_NODE_SIZE + 24);
-      setNodes((prev) => {
-        const next = applyNodeChanges(changes, prev);
-        const nodeMap = new Map(next.map((node) => [node.id, node]));
-        let mutated = false;
-        const updated = next.map((node) => {
-          if (!noiseNodes.has(node.id)) return node;
-          const targetId = getNoiseTargetId(node.id);
-          const targetNode = nodeMap.get(targetId);
-          if (!targetNode || !targetNode.position) return node;
-          const desiredPosition = {
-            x: targetNode.position.x + NODE_WIDTH / 2 - NOISE_NODE_SIZE / 2,
-            y: targetNode.position.y - noiseOffsetY,
-          };
-          if (
-            node.position &&
-            node.position.x === desiredPosition.x &&
-            node.position.y === desiredPosition.y
-          ) {
-            return node;
-          }
-          mutated = true;
-          return { ...node, position: desiredPosition };
-        });
-        return mutated ? updated : next;
-      });
-    },
-    [noiseNodes, setNodes]
-  );
+  }, [eqs, allVars, features.layoutFreeform, features.stylePreset, setNodes]);
 
   useEffect(() => {
     setNodes((prev) =>

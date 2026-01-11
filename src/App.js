@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -7,29 +7,21 @@ import ReactFlow, {
   useReactFlow,
 } from "reactflow";
 import CircleNode from "./components/nodes/CircleNode.js";
-import NoiseNode from "./components/nodes/NoiseNode.js";
 import CausalEdge from "./components/edges/CausalEdge.js";
 import DataVisualizationPanel from "./components/panels/DataVisualizationPanel.js";
-import {
-  DEFAULT_FEATURE_FLAGS,
-  DEFAULT_NOISE_SCALE,
-  NOISE_SCALE_MAX,
-  NOISE_SCALE_STEP,
-} from "./components/constants.js";
+import { DEFAULT_FEATURE_FLAGS } from "./components/constants.js";
 import { PRESETS } from "./data/presets.js";
 import { useScmModel } from "./hooks/useScmModel.js";
 import { useNodeGraph } from "./hooks/useNodeGraph.js";
 import { usePropagationEffects } from "./hooks/usePropagationEffects.js";
 import { usePhoneLayout } from "./hooks/usePhoneLayout.js";
-import { buildGraphSignature } from "./utils/graphSignature.js";
-import { buildNoiseAugmentedGraph } from "./utils/noiseUtils.js";
 
 const DevPanel = lazy(() => import("./components/panels/DevPanel.js"));
 const CheatSheetModal = lazy(() => import("./components/panels/CheatSheetModal.jsx"));
 
 const defaultFeatures = { ...DEFAULT_FEATURE_FLAGS };
 
-const nodeTypes = { circle: CircleNode, noise: NoiseNode };
+const nodeTypes = { circle: CircleNode };
 const edgeTypes = { causal: CausalEdge };
 
 const defaultFlowBridge = {
@@ -58,16 +50,11 @@ export function createApp(overrides = {}) {
     const h = React.createElement;
     const reactFlow = useFlowHook();
     const [features, setFeatures] = useState(defaultFeatures);
-    const [noiseEnabled, setNoiseEnabled] = useState(false);
-    const [noiseAmount, setNoiseAmount] = useState(DEFAULT_NOISE_SCALE);
     const [isDevPanelVisible, setIsDevPanelVisible] = useState(false);
     const [isCheatSheetOpen, setIsCheatSheetOpen] = useState(false);
     const [forcePhoneLayout, setForcePhoneLayout] = useState(false);
     const [advancedOpenMap, setAdvancedOpenMap] = useState({});
     const [controlledVars, setControlledVars] = useState([]);
-    const dragStateRef = useRef(new Set());
-    const memoNodeTypes = useMemo(() => nodeTypes, []);
-    const memoEdgeTypes = useMemo(() => edgeTypes, []);
     const { isPhoneLayout, orientation } = usePhoneLayout(forcePhoneLayout);
     const isPortrait = orientation !== "landscape";
     const joinClasses = (...classes) => classes.filter(Boolean).join(" ");
@@ -109,40 +96,20 @@ export function createApp(overrides = {}) {
       model,
       eqs,
       allVars,
+      graphSignature,
     } = useScmModel(defaultPreset);
-
-    const noiseConfig = useMemo(
-      () => ({ enabled: noiseEnabled, amount: noiseAmount }),
-      [noiseEnabled, noiseAmount]
-    );
-
-    const { eqs: graphEqs, allVars: graphAllVars, noiseNodes } = useMemo(() => {
-      if (!noiseEnabled) {
-        return { eqs, allVars, noiseNodes: new Set() };
-      }
-      return buildNoiseAugmentedGraph(eqs, allVars);
-    }, [eqs, allVars, noiseEnabled]);
-
-    const graphSignature = useMemo(() => buildGraphSignature(graphEqs), [graphEqs]);
 
     const propagation = usePropagationEffects({
       model,
-      eqs: graphEqs,
-      allVars: graphAllVars,
+      eqs,
+      allVars,
       features,
-      noiseConfig,
     });
     const isAssignmentsPaused = propagation.isAssignmentsPaused;
 
-    useEffect(() => {
-      if (!isAssignmentsPaused) return;
-      dragStateRef.current.clear();
-    }, [isAssignmentsPaused]);
-
     const { nodes, edges, onNodesChange, onEdgesChange } = useNodeGraph({
-      eqs: graphEqs,
-      allVars: graphAllVars,
-      noiseNodes,
+      eqs,
+      allVars,
       features,
       model,
       displayValues: propagation.displayValues,
@@ -172,25 +139,15 @@ export function createApp(overrides = {}) {
       };
     }, [reactFlow, graphSignature, nodes.length, features.layoutFreeform, features.stylePreset]);
     const startDrag = (id) => {
-      if (isAssignmentsPaused) return;
-      dragStateRef.current.add(id);
       if (features.ephemeralClamp) propagation.handleDragStart(id);
     };
 
     const finishDrag = (id, rawValue) => {
-      if (!dragStateRef.current.has(id)) return;
-      dragStateRef.current.delete(id);
       if (features.ephemeralClamp) propagation.handleDragEnd(id);
-      const nextValue = Number(rawValue);
-      if (!Number.isFinite(nextValue)) return;
-      if ((propagation.values[id] ?? 0) === nextValue) return;
-      propagation.handleValueCommit(id, nextValue);
+      propagation.handleValueCommit(id, rawValue);
     };
 
-    const sortedVariables = useMemo(
-      () => Array.from(allVars || []).filter((id) => !noiseNodes.has(id)).sort(),
-      [allVars, noiseNodes]
-    );
+    const sortedVariables = useMemo(() => Array.from(allVars || []).sort(), [allVars]);
 
     const sliderRows = sortedVariables.map((id) => {
       const range = propagation.ranges[id] || { min: -100, max: 100 };
@@ -393,17 +350,7 @@ export function createApp(overrides = {}) {
           value: sliderValue,
           className: joinClasses("w-full", isCausion && "causion-slider__range"),
           style: rangeTrackStyle,
-          onChange: (e) => {
-            const nextValue = Number(e.target.value);
-            if (!Number.isFinite(nextValue)) return;
-            const isDragging = dragStateRef.current.has(id);
-            const isFocused =
-              typeof document !== "undefined" &&
-              document.activeElement === e.currentTarget;
-            if (!isDragging && !isFocused) return;
-            if ((propagation.values[id] ?? 0) === nextValue) return;
-            propagation.handleValueChange(id, nextValue);
-          },
+          onChange: (e) => propagation.handleValueChange(id, Number(e.target.value)),
           onMouseDown: () => startDrag(id),
           onMouseUp: (e) => finishDrag(id, Number(e.currentTarget.value)),
           onMouseLeave: (e) => finishDrag(id, Number(e.currentTarget.value)),
@@ -435,12 +382,7 @@ export function createApp(overrides = {}) {
                   max: range.max,
                   step: 1,
                   value: sliderValue,
-                  onChange: (e) => {
-                    const nextValue = Number(e.target.value);
-                    if (!Number.isFinite(nextValue)) return;
-                    if ((propagation.values[id] ?? 0) === nextValue) return;
-                    propagation.handleValueChange(id, nextValue);
-                  },
+                  onChange: (e) => propagation.handleValueChange(id, Number(e.target.value)),
                   disabled: isAssignmentsPaused,
                 })
               ),
@@ -659,89 +601,25 @@ export function createApp(overrides = {}) {
       isAssignmentsPaused && (isCausion ? "is-active" : "bg-amber-100")
     );
 
-    const noiseControl = h(
-      "div",
-      {
-        className: joinClasses(
-          "flex items-center gap-2 rounded-full border px-3 py-1 flex-[0_1_200px] min-w-[140px]",
-          isCausion
-            ? "border-[var(--color-ink-border)] bg-[var(--color-bg-panel)]"
-            : "border-slate-200 bg-white"
-        ),
-      },
-      h(
-        "span",
-        {
-          className: joinClasses(
-            isCausion ? "text-[0.65rem] tracking-[0.14em] uppercase" : "text-xs font-semibold"
-          ),
-        },
-        "Noise"
-      ),
-      h("input", {
-        type: "range",
-        min: 0,
-        max: NOISE_SCALE_MAX,
-        step: NOISE_SCALE_STEP,
-        value: noiseAmount,
-        className: joinClasses("w-20", isCausion && "causion-slider__range"),
-        onChange: (event) => {
-          const next = Number(event.target.value);
-          if (!Number.isFinite(next)) return;
-          const clamped = Math.max(0, Math.min(NOISE_SCALE_MAX, next));
-          setNoiseAmount(clamped);
-        },
-        disabled: !noiseEnabled,
-        "aria-label": "Noise amount",
-      }),
-      h(
-        "label",
-        { className: "flex items-center gap-2 cursor-pointer" },
-        h(
-          "span",
-          {
-            className: joinClasses(
-              isCausion ? "text-[0.6rem] tracking-[0.12em] uppercase" : "text-[0.65rem]"
-            ),
-          },
-          noiseEnabled ? "On" : "Off"
-        ),
-        h("input", {
-          type: "checkbox",
-          checked: noiseEnabled,
-          onChange: (event) => setNoiseEnabled(event.target.checked),
-          "aria-label": "Toggle noise",
-          className: isCausion ? "causion-checkbox" : "",
-        })
-      )
-    );
-
     const assignPanel = h(
       "div",
       { className: panelBaseClass },
       h(
         "div",
-        {
-          className: joinClasses(
-            "flex items-center gap-3 flex-wrap",
-            !isCausion && "mb-2"
-          ),
-        },
+        { className: joinClasses("flex items-center justify-between gap-3", !isCausion && "mb-2") },
         h(
           "div",
           {
             className: joinClasses(
               panelHeadingClass,
-              isCausion ? "tracking-[0.08em]" : "",
-              "shrink-0"
+              isCausion ? "tracking-[0.08em]" : ""
             ),
           },
           "Assign Values"
         ),
         h(
           "div",
-          { className: "flex items-center gap-2 flex-wrap justify-end flex-1 min-w-[200px]" },
-          noiseControl,
+          { className: "flex items-center gap-2 shrink-0" },
           h(
             "button",
             {
@@ -963,8 +841,8 @@ export function createApp(overrides = {}) {
           {
             nodes,
             edges,
-            nodeTypes: memoNodeTypes,
-            edgeTypes: memoEdgeTypes,
+            nodeTypes,
+            edgeTypes,
             onNodesChange,
             onEdgesChange,
             deleteKeyCode: null,
@@ -974,7 +852,7 @@ export function createApp(overrides = {}) {
         ),
         h(DataVisualizationPanel, {
           allVars,
-          values: propagation.sampleValues,
+          values: propagation.values,
           themePreset,
           isPhoneLayout,
           orientation,
