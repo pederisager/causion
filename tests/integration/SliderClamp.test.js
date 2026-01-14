@@ -51,6 +51,9 @@ describe("Slider clamp integration", () => {
 
     renderWithProviders(React.createElement(App), { bridge });
 
+    const advancedToggle = await screen.findByRole("button", { name: /advanced functions/i });
+    fireEvent.click(advancedToggle);
+
     await waitFor(() => {
       expect(document.querySelectorAll("[data-causion-slider]").length).toBeGreaterThan(0);
     });
@@ -123,6 +126,9 @@ describe("Slider clamp integration", () => {
     const user = userEvent.setup();
 
     renderWithProviders(React.createElement(App), { bridge });
+
+    const advancedToggle = await screen.findByRole("button", { name: /advanced functions/i });
+    fireEvent.click(advancedToggle);
 
     await waitFor(() => {
       expect(document.querySelectorAll("[data-causion-slider]").length).toBeGreaterThan(0);

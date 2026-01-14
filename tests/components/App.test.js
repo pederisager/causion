@@ -33,16 +33,19 @@ describe("App", () => {
     expect(await screen.findByText("Dev Panel (feature flags)")).toBeInTheDocument();
   });
 
-  it("keeps the random toggle available while do() is active", () => {
+  it("keeps the random toggle available while do() is active", async () => {
     const { createApp } = __TEST_ONLY__;
     const { App } = createApp(reactFlowBridgeStub);
 
     renderWithProviders(React.createElement(App));
 
-    const randomButton = screen.getAllByRole("button", { name: /random play/i })[0];
+    const advancedToggle = screen.getByRole("button", { name: /advanced functions/i });
+    fireEvent.click(advancedToggle);
+
+    const randomButton = (await screen.findAllByRole("button", { name: /random play/i }))[0];
     expect(randomButton).toBeEnabled();
 
-    const clampToggle = screen.getAllByRole("button", { name: /do\(\) clamp/i })[0];
+    const clampToggle = (await screen.findAllByRole("button", { name: /do\(\) clamp/i }))[0];
     fireEvent.click(clampToggle);
     expect(clampToggle).toHaveAttribute("aria-pressed", "true");
     expect(randomButton).toBeEnabled();

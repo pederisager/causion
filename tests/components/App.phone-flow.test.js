@@ -42,23 +42,24 @@ function mockMatchMedia() {
 }
 
 describe("App phone layout & flow safety", () => {
-  it("keeps the UI mounted when enabling Phone UI and exposes an exit control", async () => {
+  it("keeps the UI mounted on phones without exposing the removed Phone UI toggle", async () => {
+    setViewport(600, 900);
+    const restoreMatchMedia = mockMatchMedia();
     const { createApp } = __TEST_ONLY__;
     const { App } = createApp(reactFlowBridgeStub);
 
-    renderWithProviders(React.createElement(App));
+    try {
+      renderWithProviders(React.createElement(App));
 
-    const enterButton = await screen.findByRole("button", { name: /phone ui beta/i });
-    fireEvent.click(enterButton);
+      expect(screen.queryByRole("button", { name: /phone ui beta/i })).toBeNull();
 
-    const advancedToggle = await screen.findByRole("button", { name: /advanced functions/i });
-    fireEvent.click(advancedToggle);
+      const advancedToggle = await screen.findByRole("button", { name: /advanced functions/i });
+      fireEvent.click(advancedToggle);
 
-    expect(await screen.findByText("Tools")).toBeInTheDocument();
-    const exitButton = await screen.findByRole("button", { name: /exit phone ui beta/i });
-    fireEvent.click(exitButton);
-
-    expect(await screen.findByRole("button", { name: /phone ui beta/i })).toBeInTheDocument();
+      expect(await screen.findByText("Tools")).toBeInTheDocument();
+    } finally {
+      restoreMatchMedia();
+    }
   });
 
   it("disables the default delete/backspace removal in React Flow", () => {

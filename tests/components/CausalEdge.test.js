@@ -123,7 +123,7 @@ describe("CausalEdge", () => {
 
     const hitbox = container.querySelector('[data-edge-hitbox="true"]');
     expect(hitbox).toBeInTheDocument();
-    expect(hitbox.style.pointerEvents).toBe("stroke");
+    expect(hitbox.getAttribute("pointer-events")).toBe("stroke");
     expect(hitbox.getAttribute("stroke-width")).toBe("24");
   });
 });
