@@ -292,11 +292,24 @@ function pickHandleFromDelta(dx, dy) {
   return dy >= 0 ? "B" : "T";
 }
 
+function nodeDimensions(node) {
+  if (node?.type === "noise") {
+    return { width: NOISE_NODE_SIZE, height: NOISE_NODE_SIZE };
+  }
+  return { width: NODE_W, height: NODE_H };
+}
+
 function nodeCenter(node) {
+  const { width, height } = nodeDimensions(node);
   return {
-    x: node.position.x + NODE_W / 2,
-    y: node.position.y + NODE_H / 2,
+    x: node.position.x + width / 2,
+    y: node.position.y + height / 2,
   };
+}
+
+function nodeRadius(node) {
+  const { width, height } = nodeDimensions(node);
+  return Math.min(width, height) / 2;
 }
 
 function mapHandleId(code, kind) {
@@ -584,6 +597,14 @@ export function useNodeGraph({
           const dy = targetCenter.y - sourceCenter.y;
           const sourceHandle = features.anchorHandles ? mapHandleId(pickHandleFromDelta(dx, dy), "s") : undefined;
           const targetHandle = features.anchorHandles ? mapHandleId(pickHandleFromDelta(-dx, -dy), "t") : undefined;
+          const sourceRadius = nodeRadius(sourceNode);
+          const targetRadius = nodeRadius(targetNode);
+          const edgeGeometry = {
+            sourceCenter,
+            targetCenter,
+            sourceRadius,
+            targetRadius,
+          };
           const id = `${parent}->${child}`;
           const desiredMarker = { type: MarkerType.ArrowClosed, width: 30, height: 30, color: "#111" };
           const desiredStyle = { strokeWidth: 2, stroke: "#111" };
@@ -636,6 +657,7 @@ export function useNodeGraph({
                 allowLabelEdit: canEditLabel,
                 showLabel,
                 onEdgeCoefficientCommit,
+                ...edgeGeometry,
               };
               if (trimmedLabel) {
                 nextData.effectLabel = trimmedLabel;
@@ -652,6 +674,7 @@ export function useNodeGraph({
                 allowLabelEdit: canEditLabel,
                 showLabel,
                 onEdgeCoefficientCommit,
+                ...edgeGeometry,
               };
               if (trimmedLabel) {
                 nextData.effectLabel = trimmedLabel;
@@ -664,7 +687,13 @@ export function useNodeGraph({
                 edge.data.effectLabel !== nextData.effectLabel ||
                 edge.data.disabledByDo !== nextData.disabledByDo ||
                 edge.data.allowLabelEdit !== nextData.allowLabelEdit ||
-                edge.data.showLabel !== nextData.showLabel
+                edge.data.showLabel !== nextData.showLabel ||
+                edge.data.sourceRadius !== nextData.sourceRadius ||
+                edge.data.targetRadius !== nextData.targetRadius ||
+                edge.data.sourceCenter?.x !== nextData.sourceCenter?.x ||
+                edge.data.sourceCenter?.y !== nextData.sourceCenter?.y ||
+                edge.data.targetCenter?.x !== nextData.targetCenter?.x ||
+                edge.data.targetCenter?.y !== nextData.targetCenter?.y
               ) {
                 edge = { ...edge, data: nextData };
                 mutated = true;
@@ -689,6 +718,7 @@ export function useNodeGraph({
                 allowLabelEdit: canEditLabel,
                 showLabel,
                 onEdgeCoefficientCommit,
+                ...edgeGeometry,
                 ...(trimmedLabel ? { effectLabel: trimmedLabel } : {}),
               },
               style: desiredStyle,

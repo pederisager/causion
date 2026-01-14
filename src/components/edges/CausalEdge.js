@@ -38,6 +38,41 @@ function applyEdgeGap(sourceX, sourceY, targetX, targetY, gap) {
   };
 }
 
+function isFinitePoint(point) {
+  return (
+    point &&
+    Number.isFinite(point.x) &&
+    Number.isFinite(point.y)
+  );
+}
+
+function applyCircularAnchors(sourceX, sourceY, targetX, targetY, data) {
+  const sourceCenter = data?.sourceCenter;
+  const targetCenter = data?.targetCenter;
+  const sourceRadius = Number.isFinite(data?.sourceRadius) ? data.sourceRadius : null;
+  const targetRadius = Number.isFinite(data?.targetRadius) ? data.targetRadius : null;
+  if (!isFinitePoint(sourceCenter) || !isFinitePoint(targetCenter)) {
+    return { sourceX, sourceY, targetX, targetY };
+  }
+  if (!Number.isFinite(sourceRadius) || !Number.isFinite(targetRadius)) {
+    return { sourceX, sourceY, targetX, targetY };
+  }
+  const dx = targetCenter.x - sourceCenter.x;
+  const dy = targetCenter.y - sourceCenter.y;
+  const length = Math.hypot(dx, dy);
+  if (!Number.isFinite(length) || length <= 0) {
+    return { sourceX, sourceY, targetX, targetY };
+  }
+  const unitX = dx / length;
+  const unitY = dy / length;
+  return {
+    sourceX: sourceCenter.x + unitX * sourceRadius,
+    sourceY: sourceCenter.y + unitY * sourceRadius,
+    targetX: targetCenter.x - unitX * targetRadius,
+    targetY: targetCenter.y - unitY * targetRadius,
+  };
+}
+
 const DISABLED_STROKE_OPACITY = 0.38;
 const DISABLED_MARKER_OPACITY = 0.2;
 
@@ -58,8 +93,9 @@ export default function CausalEdge({
   const inputRef = useRef(null);
 
   const edgeGap = getEdgeConnectionGap();
+  const circularAnchors = applyCircularAnchors(sourceX, sourceY, targetX, targetY, data);
   const { sourceX: adjustedSourceX, sourceY: adjustedSourceY, targetX: adjustedTargetX, targetY: adjustedTargetY } =
-    applyEdgeGap(sourceX, sourceY, targetX, targetY, edgeGap);
+    applyEdgeGap(circularAnchors.sourceX, circularAnchors.sourceY, circularAnchors.targetX, circularAnchors.targetY, edgeGap);
   const [edgePath, labelX, labelY] = getStraightPath({
     sourceX: adjustedSourceX,
     sourceY: adjustedSourceY,
