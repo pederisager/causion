@@ -51,30 +51,32 @@ describe("Slider clamp integration", () => {
 
     renderWithProviders(React.createElement(App), { bridge });
 
-    const sliderLabel = await screen.findByText(/^A:/i);
-    const sliderRow = sliderLabel.closest("div").parentElement;
+    await waitFor(() => {
+      expect(document.querySelectorAll("[data-causion-slider]").length).toBeGreaterThan(0);
+    });
+    const sliderRow = document.querySelectorAll("[data-causion-slider]")[0];
     if (!sliderRow) {
-      throw new Error("Failed to locate slider row for variable A");
+      throw new Error("Failed to locate a slider row");
     }
 
     // Value label uses the span.opacity-70 inside the slider row (defined in src/App.js).
     const getValueLabel = () => sliderRow.querySelector("span.opacity-70");
-    const slider = within(sliderRow).getByRole("slider");
+    const sliderInRow = within(sliderRow).getByRole("slider");
     const clampToggle = within(sliderRow).getByRole("button", { name: /do\(\) clamp/i });
 
     expect(getValueLabel()).toHaveTextContent("0.00");
     expect(clampToggle).toHaveAttribute("aria-pressed", "false");
     expect(sliderRow).toHaveClass("mb-4");
     expect(sliderRow).not.toHaveClass("is-clamped");
-    fireEvent.mouseDown(slider);
-    fireEvent.input(slider, { target: { value: "30" } });
+    fireEvent.mouseDown(sliderInRow);
+    fireEvent.input(sliderInRow, { target: { value: "30" } });
 
     await waitFor(() => {
-      expect(slider).toHaveValue("30");
+      expect(sliderInRow).toHaveValue("30");
       expect(getValueLabel()).toHaveTextContent("30.00");
     });
 
-    fireEvent.mouseUp(slider);
+    fireEvent.mouseUp(sliderInRow);
 
     await waitFor(() => {
       expect(getValueLabel()).toHaveTextContent("0.00");
@@ -96,20 +98,50 @@ describe("Slider clamp integration", () => {
       expect(clampToggle).toHaveAttribute("aria-pressed", "true")
     );
 
-    fireEvent.mouseDown(slider);
-    fireEvent.input(slider, { target: { value: "25" } });
+    fireEvent.mouseDown(sliderInRow);
+    fireEvent.input(sliderInRow, { target: { value: "25" } });
 
     await waitFor(() => {
-      expect(slider).toHaveValue("25");
+      expect(sliderInRow).toHaveValue("25");
       expect(getValueLabel()).toHaveTextContent("25.00");
     });
 
-    fireEvent.mouseUp(slider);
+    fireEvent.mouseUp(sliderInRow);
 
     await waitFor(() => {
       expect(getValueLabel()).toHaveTextContent("25.00");
     });
 
     expect(clampToggle).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("keeps autoplay active when mouseup fires without a slider drag", async () => {
+    const FlowHarness = createFlowHarness();
+    const bridge = { ...reactFlowBridgeStub, ReactFlow: FlowHarness };
+    const { createApp } = AppTestUtils;
+    const { App } = createApp(bridge);
+    const user = userEvent.setup();
+
+    renderWithProviders(React.createElement(App), { bridge });
+
+    await waitFor(() => {
+      expect(document.querySelectorAll("[data-causion-slider]").length).toBeGreaterThan(0);
+    });
+    const sliderRow = document.querySelectorAll("[data-causion-slider]")[0];
+    if (!sliderRow) {
+      throw new Error("Failed to locate a slider row");
+    }
+
+    const sliderInRow = within(sliderRow).getByRole("slider");
+    const autoToggle = within(sliderRow).getByRole("button", {
+      name: /start auto slide/i,
+    });
+
+    await user.click(autoToggle);
+    await waitFor(() => expect(autoToggle).toHaveAttribute("aria-pressed", "true"));
+
+    fireEvent.mouseUp(sliderInRow);
+
+    await waitFor(() => expect(autoToggle).toHaveAttribute("aria-pressed", "true"));
   });
 });

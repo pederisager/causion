@@ -12,17 +12,24 @@ describe("App", () => {
     expect(() => renderWithProviders(React.createElement(App))).not.toThrow();
   });
 
-  it("keeps the dev panel hidden until toggled", async () => {
+  it("keeps the advanced panel hidden until toggled", async () => {
     const { createApp } = __TEST_ONLY__;
     const { App } = createApp(reactFlowBridgeStub);
 
     renderWithProviders(React.createElement(App));
 
     expect(screen.queryByText("Dev Panel (feature flags)")).toBeNull();
+    expect(screen.queryByRole("region", { name: /advanced functions/i })).toBeNull();
 
-    const toggleButton = screen.getByRole("button", { name: /show dev panel/i });
+    const toggleButton = screen.getByRole("button", { name: /advanced functions/i });
+    expect(toggleButton).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(toggleButton);
 
+    expect(screen.getByRole("button", { name: /hide advanced functions/i })).toHaveAttribute(
+      "aria-expanded",
+      "true"
+    );
+    expect(screen.getByRole("region", { name: /advanced functions/i })).toBeInTheDocument();
     expect(await screen.findByText("Dev Panel (feature flags)")).toBeInTheDocument();
   });
 

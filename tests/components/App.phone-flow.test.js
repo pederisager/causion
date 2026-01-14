@@ -4,6 +4,43 @@ import { screen, fireEvent } from "@testing-library/react";
 import { renderWithProviders, reactFlowBridgeStub } from "../setup/test-env.js";
 import { __TEST_ONLY__ } from "../../src/App.js";
 
+function setViewport(width, height = 900) {
+  Object.defineProperty(window, "innerWidth", {
+    writable: true,
+    configurable: true,
+    value: width,
+  });
+  Object.defineProperty(window, "innerHeight", {
+    writable: true,
+    configurable: true,
+    value: height,
+  });
+}
+
+function mockMatchMedia() {
+  const original = window.matchMedia;
+  window.matchMedia = (query) => {
+    const minMatch = query.match(/min-width:\s*(\d+)px/);
+    const maxMatch = query.match(/max-width:\s*(\d+)px/);
+    let matches = true;
+    if (minMatch) matches = matches && window.innerWidth >= Number(minMatch[1]);
+    if (maxMatch) matches = matches && window.innerWidth <= Number(maxMatch[1]);
+    return {
+      matches,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      onchange: null,
+      dispatchEvent: () => false,
+    };
+  };
+  return () => {
+    window.matchMedia = original;
+  };
+}
+
 describe("App phone layout & flow safety", () => {
   it("keeps the UI mounted when enabling Phone UI and exposes an exit control", async () => {
     const { createApp } = __TEST_ONLY__;
@@ -13,6 +50,9 @@ describe("App phone layout & flow safety", () => {
 
     const enterButton = await screen.findByRole("button", { name: /phone ui beta/i });
     fireEvent.click(enterButton);
+
+    const advancedToggle = await screen.findByRole("button", { name: /advanced functions/i });
+    fireEvent.click(advancedToggle);
 
     expect(await screen.findByText("Tools")).toBeInTheDocument();
     const exitButton = await screen.findByRole("button", { name: /exit phone ui beta/i });
@@ -43,5 +83,22 @@ describe("App phone layout & flow safety", () => {
     expect(recordedProps.length).toBeGreaterThan(0);
     const { deleteKeyCode } = recordedProps[recordedProps.length - 1];
     expect(deleteKeyCode).toBeNull();
+  });
+
+  it("keeps the DAG canvas mounted in overlay mode on phones", () => {
+    setViewport(600, 900);
+    const restoreMatchMedia = mockMatchMedia();
+    const { createApp } = __TEST_ONLY__;
+    const { App } = createApp(reactFlowBridgeStub);
+
+    try {
+      renderWithProviders(React.createElement(App));
+
+      const dock = document.querySelector("[data-dock-mode]");
+      expect(dock).toHaveAttribute("data-dock-mode", "overlay");
+      expect(document.querySelector(".phone-dag-canvas")).toBeInTheDocument();
+    } finally {
+      restoreMatchMedia();
+    }
   });
 });

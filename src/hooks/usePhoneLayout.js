@@ -5,7 +5,7 @@ const PHONE_BREAKPOINT = 900;
 function snapshot(forcePhoneLayout) {
   if (typeof window === "undefined") {
     return {
-      isPhoneLayout: !!forcePhoneLayout,
+      isPhoneLayout: Boolean(forcePhoneLayout),
       orientation: "portrait",
     };
   }
@@ -13,7 +13,7 @@ function snapshot(forcePhoneLayout) {
   const orientation = width > height ? "landscape" : "portrait";
   const prefersPhone = width <= PHONE_BREAKPOINT || height <= 600;
   return {
-    isPhoneLayout: !!forcePhoneLayout || prefersPhone,
+    isPhoneLayout: forcePhoneLayout ? true : prefersPhone,
     orientation,
     width,
     height,

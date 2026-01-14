@@ -259,13 +259,13 @@ body.phone-ui-mode {
   flex-direction: column;
 }
 
-.phone-layout--portrait .phone-pane--dag {
+.phone-layout--portrait.phone-layout--has-panels .phone-pane--dag {
   flex: 0 0 50%;
   max-height: 50%;
   overflow: hidden;
 }
 
-.phone-layout--portrait .phone-pane--panels {
+.phone-layout--portrait.phone-layout--has-panels .phone-pane--panels {
   flex: 1 1 50%;
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 6rem);
 }
