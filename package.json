@@ -9,6 +9,7 @@
     "test": "vitest",
     "test:ci": "vitest run --reporter=basic && node --test tests/data/presets.test.js tests/graph/math.test.js tests/graph/parser.test.js tests/graph/topology.test.js tests/hooks/usePropagationEffects.test.js tests/hooks/useNodeGraph.test.js tests/hooks/useScmModel.test.js tests/hooks/propagationTiming.test.js tests/edgeUtils.test.js tests/graphSignature.test.js tests/nodeUtils.test.js tests/timers.test.js tests/utils/effectLabels.test.js",
     "test:watch": "vitest watch",
+    "test:ui": "node tools/playwright/smoke-ui.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },
