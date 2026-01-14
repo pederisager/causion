@@ -242,3 +242,12 @@ How to use:
 - Tests: Not recorded.
 - Regression check: Not recorded.
 - Commit/PR: 91e0894
+
+## 2026-01-14 — fix(phone-ui): show data panel under DAG in phone layout
+- Area: phone UI / data panel layout
+- Symptom: "Visualize data" button not accessible on phone; data panel could not be viewed.
+- Root cause: Phone layout forced data panel to overlay mode and the toggle lived in the advanced panel, which is often hidden.
+- Fix: Force bottom docking in phone layout and surface the toggle in the phone header.
+- Tests: Not run (sandbox).
+- Regression check: Not run (needs manual smoke in phone layout).
+- Commit/PR: Not committed.

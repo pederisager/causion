@@ -109,7 +109,9 @@ export function createApp(overrides = {}) {
     const joinClasses = (...classes) => classes.filter(Boolean).join(" ");
     const themePreset = features.stylePreset === "minimal" ? "minimal" : "causion";
     const isCausion = themePreset === "causion";
-    const dataPanelDockMode = !isMdViewport
+    const dataPanelDockMode = isPhoneLayout
+      ? "bottom"
+      : !isMdViewport
       ? "overlay"
       : isLgViewport
       ? dataPanelPrefs.dockPreference
@@ -1764,6 +1766,7 @@ export function createApp(overrides = {}) {
           : h(
               "div",
               { className: "flex items-center gap-2 flex-wrap justify-end" },
+              renderDataPanelToggleButton("condensed"),
               renderAdvancedPanelToggleButton("condensed"),
               forcePhoneLayout ? renderExitPhonePreviewButton("condensed") : null
             )
