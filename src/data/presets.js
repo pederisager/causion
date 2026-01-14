@@ -3,12 +3,14 @@
 // and tests while making it easier for beginners to discover available
 // examples.
 
-export const PRESET_MEDIATION = `M = 0.5*A\nB = 0.5*M`;
-export const PRESET_CONFOUNDING = `A = 0.5*C\nB = 0.5*C`;
-export const PRESET_COLLIDER = `C = 0.5*A + 0.5*B`;
+export const PRESET_MEDIATION = `M = X\nY = M`;
+export const PRESET_CONFOUNDING = `X = C\nY = C`;
+export const PRESET_COLLIDER = `C = X + Y`;
 export const PRESET_COMPLEX = `X = Con\nM = X\nY=Con+M\nCol=X+Y`;
+export const PRESET_SIMPLE = `Y = X`;
 
 export const PRESETS = [
+  { key: "simple", label: "Load Y = X", text: PRESET_SIMPLE },
   { key: "mediation", label: "Load Mediation", text: PRESET_MEDIATION },
   { key: "confounding", label: "Load Confounding", text: PRESET_CONFOUNDING },
   { key: "collider", label: "Load Collider", text: PRESET_COLLIDER },

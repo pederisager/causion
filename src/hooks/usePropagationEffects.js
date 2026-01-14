@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { computeValues, shallowEqualObj } from "../graph/math.js";
+import { getNoiseTargetId, isNoiseId, sampleGaussian } from "../utils/noiseUtils.js";
 import { scheduleEdgePulse, scheduleNodeDisplayUpdate, clearPendingTimers } from "../utils/timers.js";
 import { tri } from "../data/presets.js";
 import {
@@ -105,9 +106,10 @@ function collectPropagationSeeds({
   return out;
 }
 
-export function usePropagationEffects({ model, eqs, allVars, features }) {
+export function usePropagationEffects({ model, eqs, allVars, features, noiseConfig = {} }) {
   const [values, setValues] = useState({});
   const [displayValues, setDisplayValues] = useState({});
+  const [sampleValues, setSampleValues] = useState({});
   const [interventions, setInterventions] = useState({});
   const [ranges, setRanges] = useState({});
   const [autoPlay, setAutoPlay] = useState({});
@@ -116,9 +118,11 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
   const [dragging, setDragging] = useState({});
   const [edgeHot, setEdgeHot] = useState({});
   const [isAssignmentsPaused, setIsAssignmentsPaused] = useState(false);
+  const [noiseEpoch, setNoiseEpoch] = useState(0);
 
   const directChangedRef = useRef({});
   const lastValuesRef = useRef({});
+  const valuesRef = useRef({});
   const prevDraggingRef = useRef({});
   const pendingTimersRef = useRef([]);
   const nodeUpdateTimersRef = useRef(new Map());
@@ -132,6 +136,15 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
   const prevAutoPlayRef = useRef({});
   const prevRandomPlayRef = useRef({});
   const prevInterventionsRef = useRef({});
+  const noiseValuesRef = useRef({
+    enabled: false,
+    amount: 0,
+    epoch: 0,
+    byTarget: {},
+    byNode: {},
+    nodes: new Set(),
+  });
+  const noiseConfigRef = useRef(noiseConfig);
 
   const buildFlagMap = useCallback(
     (source = {}) => {
@@ -270,6 +283,10 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
   }, [allVars]);
 
   useEffect(() => {
+    valuesRef.current = values;
+  }, [values]);
+
+  useEffect(() => {
     randomPlayRef.current = randomPlay;
   }, [randomPlay]);
 
@@ -280,6 +297,10 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
   useEffect(() => {
     isPausedRef.current = isAssignmentsPaused;
   }, [isAssignmentsPaused]);
+
+  useEffect(() => {
+    noiseConfigRef.current = noiseConfig;
+  }, [noiseConfig]);
 
   useEffect(() => {
     rangesRef.current = ranges;
@@ -383,9 +404,69 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
     [allVars, interventions, autoPlay, randomPlay, dragging, features, isAssignmentsPaused]
   );
 
+  const bumpNoiseEpoch = useCallback(() => {
+    const cfg = noiseConfigRef.current || {};
+    if (!cfg.enabled) return;
+    if (isPausedRef.current) return;
+    setNoiseEpoch((prev) => prev + 1);
+  }, []);
+
   useEffect(() => {
     if (eqs.size === 0) return;
-    const nextRaw = computeValues(model, eqs, values, activeClamp);
+    const cfg = noiseConfigRef.current || {};
+    let noiseState = null;
+    if (cfg.enabled) {
+      const shouldRefresh = noiseValuesRef.current.epoch !== noiseEpoch;
+      if (shouldRefresh) {
+        const byTarget = {};
+        const byNode = {};
+        const nodes = new Set();
+        const scale = Math.max(0, Number(cfg.amount) || 0);
+        for (const id of allVars) {
+          if (!isNoiseId(id)) continue;
+          const target = getNoiseTargetId(id);
+          if (!target) continue;
+          const range = ranges?.[target] || DEFAULT_RANGE;
+          const span = range.max - range.min;
+          const sigma = Math.abs(scale * (Number.isFinite(span) ? span : 0));
+          const noiseValue = sigma > 0 ? sampleGaussian() * sigma : 0;
+          byTarget[target] = noiseValue;
+          byNode[id] = noiseValue;
+          nodes.add(id);
+        }
+        noiseValuesRef.current = {
+          enabled: true,
+          amount: cfg.amount,
+          epoch: noiseEpoch,
+          byTarget,
+          byNode,
+          nodes,
+        };
+        nodes.forEach((id) => {
+          directChangedRef.current[id] = true;
+        });
+      }
+      if (noiseValuesRef.current.enabled) {
+        noiseState = noiseValuesRef.current;
+      }
+    } else if (noiseValuesRef.current.enabled) {
+      noiseValuesRef.current = {
+        enabled: false,
+        amount: 0,
+        epoch: noiseEpoch,
+        byTarget: {},
+        byNode: {},
+        nodes: new Set(),
+      };
+    }
+
+    let nextRaw;
+    try {
+      nextRaw = computeValues(model, eqs, values, activeClamp, noiseState);
+    } catch (error) {
+      console.warn("Propagation error:", error);
+      return;
+    }
     const clamped = { ...nextRaw };
     for (const id of allVars) {
       const range = ranges[id] || DEFAULT_RANGE;
@@ -395,7 +476,8 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
     if (!shallowEqualObj(values, clamped)) {
       setValues(clamped);
     }
-  }, [model, eqs, activeClamp, values, ranges, allVars]);
+    setSampleValues((prev) => (shallowEqualObj(prev, clamped) ? prev : clamped));
+  }, [model, eqs, activeClamp, values, ranges, allVars, noiseEpoch, noiseConfig?.enabled, noiseConfig?.amount]);
 
   useEffect(() => {
     const ids = Object.keys(autoPlay);
@@ -418,6 +500,7 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
       }
       if (Object.keys(updates).length) {
         setValues((prev) => ({ ...prev, ...updates }));
+        bumpNoiseEpoch();
       }
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -427,7 +510,7 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };
-  }, [autoPlay, autoStart, ranges, allVars, isAssignmentsPaused]);
+  }, [autoPlay, autoStart, ranges, allVars, isAssignmentsPaused, bumpNoiseEpoch]);
 
   useEffect(() => {
     const last = lastValuesRef.current;
@@ -549,10 +632,33 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
     [removePendingTimer]
   );
 
+  const stopAutomationFor = useCallback(
+    (id) => {
+      if (randomPlayRef.current?.[id]) {
+        setRandomPlay((prev) => {
+          if (!prev[id]) return prev;
+          clearRandomTimer(id);
+          return { ...prev, [id]: false };
+        });
+      }
+      if (autoPlayRef.current?.[id]) {
+        setAutoPlay((prev) => {
+          if (!prev[id]) return prev;
+          return { ...prev, [id]: false };
+        });
+      }
+    },
+    [clearRandomTimer]
+  );
+
   const applyValue = useCallback(
-    (id, raw, { syncAutoPhase } = {}) => {
+    (id, raw, { syncAutoPhase, bumpNoise = true } = {}) => {
       const range = ranges[id] || DEFAULT_RANGE;
       const clamped = clampToRange(raw, range);
+      const currentValue = valuesRef.current?.[id] ?? lastValuesRef.current?.[id];
+      if (currentValue === clamped) {
+        return clamped;
+      }
       directChangedRef.current[id] = true;
 
       setValues((prev) => {
@@ -572,25 +678,31 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
         setAutoStart((prev) => ({ ...prev, [id]: { t0: now, p0 } }));
       }
 
+      if (bumpNoise && !isNoiseId(id)) {
+        bumpNoiseEpoch();
+      }
+
       return clamped;
     },
-    [ranges, autoPlay]
+    [ranges, autoPlay, bumpNoiseEpoch]
   );
 
   const handleValueChange = useCallback(
     (id, raw) => {
       if (isPausedRef.current) return;
+      stopAutomationFor(id);
       applyValue(id, raw, { syncAutoPhase: true });
     },
-    [applyValue]
+    [applyValue, stopAutomationFor]
   );
 
   const handleValueCommit = useCallback(
     (id, raw) => {
       if (isPausedRef.current) return;
+      stopAutomationFor(id);
       applyValue(id, raw);
     },
-    [applyValue]
+    [applyValue, stopAutomationFor]
   );
 
   useEffect(() => {
@@ -635,13 +747,22 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
           clearRandomTimer(id);
           return;
         }
-        const currentRanges = rangesRef.current || {};
-        const range = currentRanges[id] || DEFAULT_RANGE;
-        const span = range.max - range.min;
-        const raw = span === 0 ? range.min : range.min + Math.random() * span;
-        const quantized = Math.round(raw);
-        applyValue(id, quantized);
-        scheduleNext();
+        try {
+          const currentRanges = rangesRef.current || {};
+          const range = currentRanges[id] || DEFAULT_RANGE;
+          const span = range.max - range.min;
+          const raw = span === 0 ? range.min : range.min + Math.random() * span;
+          if (!Number.isFinite(raw)) {
+            throw new Error(`Random draw produced non-finite value for ${id}`);
+          }
+          const quantized = Math.round(raw);
+          applyValue(id, quantized);
+          scheduleNext();
+        } catch (error) {
+          console.warn("Random play error:", error);
+          clearRandomTimer(id);
+          setRandomPlay((prev) => ({ ...prev, [id]: false }));
+        }
       }
 
       tick();
@@ -772,6 +893,7 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
 
   const handleDragEnd = useCallback((id) => {
     if (isPausedRef.current) return;
+    directChangedRef.current[id] = true;
     setDragging((prev) => ({ ...prev, [id]: false }));
   }, []);
 
@@ -807,6 +929,7 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
     const resetFlags = buildFlagMap();
     setValues(resetValues);
     setDisplayValues(resetValues);
+    setSampleValues(resetValues);
     setInterventions(resetFlags);
     setRanges(buildRangeMap());
     setAutoPlay(resetFlags);
@@ -818,11 +941,13 @@ export function usePropagationEffects({ model, eqs, allVars, features }) {
     prevAutoPlayRef.current = {};
     prevRandomPlayRef.current = {};
     prevInterventionsRef.current = {};
-  }, [allVars, buildAutoStartMap, buildFlagMap, buildRangeMap]);
+    bumpNoiseEpoch();
+  }, [allVars, buildAutoStartMap, buildFlagMap, buildRangeMap, bumpNoiseEpoch]);
 
   return {
     values,
     displayValues,
+    sampleValues,
     interventions,
     ranges,
     autoPlay,

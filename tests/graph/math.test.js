@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { computeValues } from "../../src/graph/math.js";
 import { depsFromModel } from "../../src/graph/topology.js";
 import { parseSCM } from "../../src/graph/parser.js";
+import { buildNoiseId } from "../../src/utils/noiseUtils.js";
 
 const LINEAR_SCM = `
 U = 2
@@ -72,5 +73,43 @@ test("computeValues hoists dependencies for function calls automatically", () =>
 
   assert.equal(next.A, 0);
   assert.equal(next.Y, 0);
+});
+
+test("computeValues injects per-node noise values when provided", () => {
+  const { model } = parseSCM("A = 1\nB = A * 2");
+  const eqs = depsFromModel(model);
+  const noiseA = buildNoiseId("A");
+  const noiseB = buildNoiseId("B");
+  const noiseState = {
+    enabled: true,
+    byTarget: { A: 2, B: -1 },
+    byNode: { [noiseA]: 2, [noiseB]: -1 },
+    nodes: new Set([noiseA, noiseB]),
+  };
+
+  const next = computeValues(model, eqs, {}, {}, noiseState);
+
+  assert.equal(next[noiseA], 2);
+  assert.equal(next[noiseB], -1);
+  assert.equal(next.A, 3);
+  assert.equal(next.B, 5);
+});
+
+test("computeValues skips noise when a node is clamped", () => {
+  const { model } = parseSCM("A = 1\nB = A * 2");
+  const eqs = depsFromModel(model);
+  const noiseA = buildNoiseId("A");
+  const noiseState = {
+    enabled: true,
+    byTarget: { A: 4 },
+    byNode: { [noiseA]: 4 },
+    nodes: new Set([noiseA]),
+  };
+
+  const next = computeValues(model, eqs, { A: 10 }, { A: true }, noiseState);
+
+  assert.equal(next.A, 10);
+  assert.equal(next.B, 20);
+  assert.equal(next[noiseA], 4);
 });
 
