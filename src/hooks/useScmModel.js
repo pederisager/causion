@@ -83,6 +83,18 @@ export function useScmModel(initialText) {
     }
   }, [state.draftText]);
 
+  const commitScmText = useCallback((nextText) => {
+    try {
+      const parsed = buildParsedScm(nextText);
+      dispatch({ type: "commit", text: nextText, payload: parsed });
+      return { ok: true, error: "" };
+    } catch (error) {
+      const message = error.message || String(error);
+      dispatch({ type: "error", message });
+      return { ok: false, error: message };
+    }
+  }, []);
+
   const graphSignature = useMemo(
     () => buildGraphSignature(state.committed.eqs),
     [state.committed.eqs]
@@ -92,6 +104,7 @@ export function useScmModel(initialText) {
     scmText: state.draftText,
     setScmText,
     applyScmChanges,
+    commitScmText,
     hasPendingChanges: state.draftText !== state.committedText,
     error: state.error,
     model: state.committed.model,

@@ -1,11 +1,41 @@
-import React from "react";
-import { getStraightPath } from "reactflow";
+import React, { useEffect, useRef, useState } from "react";
+import { EdgeLabelRenderer, getStraightPath } from "reactflow";
 
 function getThemePreset() {
   if (typeof document === "undefined") return "minimal";
   const body = document.body;
   if (!body) return "minimal";
   return body.classList.contains("theme-causion") ? "causion" : "minimal";
+}
+
+function getEdgeConnectionGap() {
+  if (typeof document === "undefined") return 0;
+  const root = document.documentElement;
+  if (!root) return 0;
+  const raw = getComputedStyle(root).getPropertyValue("--edge-connection-gap");
+  const parsed = Number.parseFloat(raw);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function applyEdgeGap(sourceX, sourceY, targetX, targetY, gap) {
+  const dx = targetX - sourceX;
+  const dy = targetY - sourceY;
+  const length = Math.hypot(dx, dy);
+  if (!Number.isFinite(length) || length <= 0) {
+    return { sourceX, sourceY, targetX, targetY };
+  }
+  const safeGap = Math.max(0, Math.min(gap, length / 2));
+  if (safeGap === 0) {
+    return { sourceX, sourceY, targetX, targetY };
+  }
+  const unitX = dx / length;
+  const unitY = dy / length;
+  return {
+    sourceX: sourceX + unitX * safeGap,
+    sourceY: sourceY + unitY * safeGap,
+    targetX: targetX - unitX * safeGap,
+    targetY: targetY - unitY * safeGap,
+  };
 }
 
 const DISABLED_STROKE_OPACITY = 0.38;
@@ -17,15 +47,51 @@ export default function CausalEdge({
   sourceY,
   targetX,
   targetY,
+  interactionWidth,
   data,
+  selected,
 }) {
-  const [edgePath, labelX, labelY] = getStraightPath({ sourceX, sourceY, targetX, targetY });
+  const safeId = String(id).replace(/[^a-zA-Z0-9_-]/g, "_");
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftValue, setDraftValue] = useState("");
+  const [localError, setLocalError] = useState("");
+  const inputRef = useRef(null);
+
+  const edgeGap = getEdgeConnectionGap();
+  const { sourceX: adjustedSourceX, sourceY: adjustedSourceY, targetX: adjustedTargetX, targetY: adjustedTargetY } =
+    applyEdgeGap(sourceX, sourceY, targetX, targetY, edgeGap);
+  const [edgePath, labelX, labelY] = getStraightPath({
+    sourceX: adjustedSourceX,
+    sourceY: adjustedSourceY,
+    targetX: adjustedTargetX,
+    targetY: adjustedTargetY,
+  });
   const disabledByDo = Boolean(data?.disabledByDo);
   const hot = disabledByDo ? false : Boolean(data?.hot);
   const pulseMs = Math.max(100, Number(data?.pulseMs ?? 800));
   const animationSeconds = Math.max(0.3, pulseMs / 800);
   const themePreset = data?.stylePreset ? data.stylePreset : getThemePreset();
-  const label = typeof data?.effectLabel === "string" ? data.effectLabel.trim() : "";
+  const labelVisible = Boolean(data?.showLabel || selected);
+  const rawLabel = typeof data?.effectLabel === "string" ? data.effectLabel.trim() : "";
+  const label = labelVisible ? rawLabel : "";
+  const coefficient = Number.isFinite(data?.edgeCoefficient) ? data.edgeCoefficient : null;
+  const allowEdit = labelVisible && Boolean(data?.allowLabelEdit) && Number.isFinite(coefficient);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setDraftValue(Number.isFinite(coefficient) ? String(coefficient) : "");
+      setLocalError("");
+    }
+  }, [coefficient, isEditing]);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      if (typeof inputRef.current.select === "function") {
+        inputRef.current.select();
+      }
+    }
+  }, [isEditing]);
 
   const strokeColor = (() => {
     if (disabledByDo) {
@@ -41,6 +107,18 @@ export default function CausalEdge({
     : themePreset === "causion"
     ? "causion-edge graphite-line"
     : undefined;
+  const hitAreaWidth = Number.isFinite(interactionWidth)
+    ? Math.max(interactionWidth, chilledStroke + 6)
+    : chilledStroke + 10;
+  const interactionPath = React.createElement("path", {
+    d: edgePath,
+    fill: "none",
+    stroke: "transparent",
+    strokeWidth: hitAreaWidth,
+    pointerEvents: "stroke",
+    strokeLinecap: "round",
+    "data-edge-hitbox": "true",
+  });
   const basePath = React.createElement("path", {
     d: edgePath,
     fill: "none",
@@ -49,6 +127,17 @@ export default function CausalEdge({
     className: baseClass,
     opacity: disabledByDo ? DISABLED_STROKE_OPACITY : 1,
   });
+
+  const selectedHalo = selected
+    ? React.createElement("path", {
+        d: edgePath,
+        fill: "none",
+        stroke: themePreset === "causion" ? "rgba(63, 58, 52, 0.2)" : "rgba(148, 163, 184, 0.45)",
+        strokeWidth: (hot ? hotStroke : chilledStroke) + 6,
+        strokeLinecap: "round",
+        pointerEvents: "none",
+      })
+    : null;
 
   const marchingAnts =
     hot
@@ -68,7 +157,7 @@ export default function CausalEdge({
       ? React.createElement(
           "marker",
           {
-            id: `arrow-${id}`,
+            id: `arrow-${safeId}`,
             markerWidth: 10,
             markerHeight: 10,
             refX: 8,
@@ -89,7 +178,7 @@ export default function CausalEdge({
       : React.createElement(
           "marker",
           {
-            id: `arrow-${id}`,
+            id: `arrow-${safeId}`,
             markerWidth: "10",
             markerHeight: "10",
             refX: "9",
@@ -111,7 +200,7 @@ export default function CausalEdge({
     fill: "none",
     stroke: "transparent",
     strokeWidth: themePreset === "causion" ? chilledStroke : 2,
-    markerEnd: `url(#arrow-${id})`,
+    markerEnd: `url(#arrow-${safeId})`,
   });
 
   const themeClass = themePreset === "causion" ? "edge-label--causion" : "edge-label--minimal";
@@ -119,50 +208,104 @@ export default function CausalEdge({
     .filter(Boolean)
     .join(" ");
 
-  const textPaddingX = 6;
-  const textPaddingY = 3;
-  const approxCharWidth = 7.2;
-  const approxHeight = 12;
-  const backgroundFill = "#f5f2e8";
+  const handleCommit = () => {
+    if (!allowEdit) return;
+    const next = Number.parseFloat(draftValue);
+    if (!Number.isFinite(next)) {
+      setLocalError("Enter a number.");
+      return;
+    }
+    if (Number.isFinite(coefficient) && Math.abs(next - coefficient) < 1e-9) {
+      setIsEditing(false);
+      setLocalError("");
+      return;
+    }
+    data?.onEdgeCoefficientCommit?.(id, next);
+    setIsEditing(false);
+    setLocalError("");
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setLocalError("");
+    setDraftValue(Number.isFinite(coefficient) ? String(coefficient) : "");
+  };
+
+  const handleLabelClick = (event) => {
+    event.stopPropagation();
+    if (!allowEdit || isEditing) return;
+    setIsEditing(true);
+  };
 
   const labelElement =
     label && Number.isFinite(labelX) && Number.isFinite(labelY)
-      ? (() => {
-          const width = Math.max(label.length * approxCharWidth + textPaddingX * 2, 18);
-          const height = approxHeight + textPaddingY * 2;
-          const rectX = labelX - width / 2;
-          const rectY = labelY - height / 2;
-          const rect = React.createElement("rect", {
-            x: rectX,
-            y: rectY,
-            rx: 4,
-            ry: 4,
-            width,
-            height,
-            fill: backgroundFill,
-          });
-          const textEl = React.createElement(
-            "text",
+      ? React.createElement(
+          EdgeLabelRenderer,
+          null,
+          React.createElement(
+            "div",
             {
-              x: labelX,
-              y: labelY,
-              textAnchor: "middle",
-              dominantBaseline: "middle",
-              className: labelClassName,
+              className: [
+                "edge-label__container",
+                themePreset === "causion" ? "edge-label__container--causion" : "edge-label__container--minimal",
+                allowEdit ? "edge-label__container--editable" : "",
+              ]
+                .filter(Boolean)
+                .join(" "),
+              style: {
+                transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              },
+              onClick: handleLabelClick,
             },
-            label
-          );
-          return React.createElement(
-            "g",
-            {
-              transformOrigin: `${labelX} ${labelY}`,
-              style: { pointerEvents: "none" },
-            },
-            rect,
-            textEl
-          );
-        })()
+            isEditing
+              ? React.createElement("input", {
+                  ref: inputRef,
+                  type: "text",
+                  inputMode: "decimal",
+                  className: "edge-label__input",
+                  value: draftValue,
+                  onChange: (event) => {
+                    setDraftValue(event.target.value);
+                    setLocalError("");
+                  },
+                  onKeyDown: (event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      handleCommit();
+                    } else if (event.key === "Escape") {
+                      event.preventDefault();
+                      handleCancel();
+                    }
+                  },
+                  onBlur: handleCommit,
+                })
+              : React.createElement(
+                  "span",
+                  {
+                    className: labelClassName,
+                  },
+                  label
+                ),
+            localError
+              ? React.createElement(
+                  "div",
+                  { className: "edge-label__error" },
+                  localError
+                )
+              : null
+          )
+        )
       : null;
 
-  return React.createElement("g", null, basePath, marchingAnts, defs, arrowPath, labelElement);
+  return React.createElement(
+    "g",
+    null,
+    interactionPath,
+    selectedHalo,
+    basePath,
+    marchingAnts,
+    defs,
+    arrowPath,
+    labelElement
+  );
 }

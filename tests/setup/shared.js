@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 
 const positions = { Top: "top", Right: "right", Bottom: "bottom", Left: "left" };
 
@@ -21,7 +22,7 @@ const createStateHook = () => (initial) => {
 
 const useCollectionState = createStateHook();
 const MarkerType = { ArrowClosed: "arrowclosed" };
-const getStraightPath = () => ["M0,0 L1,1", { x: 0, y: 0 }];
+const getStraightPath = () => ["M0,0 L1,1", 0, 0];
 
 // Lightweight stand-ins for the React Flow pieces that the app wires up.
 // These keep our component tests decoupled from the real library while still
@@ -34,6 +35,17 @@ export const reactFlowBridgeStub = {
   Controls: () => React.createElement("div", { "data-testid": "rf-controls" }),
   MiniMap: ({ children }) =>
     React.createElement("div", { "data-testid": "rf-minimap" }, children),
+  NodeToolbar: ({ children }) =>
+    React.createElement("div", { "data-testid": "rf-node-toolbar" }, children),
+  EdgeLabelRenderer: ({ children }) => {
+    if (typeof document === "undefined") {
+      return React.createElement("div", { "data-testid": "rf-edge-label" }, children);
+    }
+    return createPortal(
+      React.createElement("div", { "data-testid": "rf-edge-label" }, children),
+      document.body
+    );
+  },
   useReactFlow: () => ({ fitView: () => {} }),
   Handle,
   Position: positions,
