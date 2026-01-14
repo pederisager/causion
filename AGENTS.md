@@ -11,7 +11,9 @@
 | Install | `npm ci` (preferred) or `npm install`. |
 | Dev server | `npm run dev` (Vite, usually http://localhost:5173). Announce any custom port in the logs. |
 | Build | `npm run build`. |
-| Tests | Prompt the user to run `npm test` (Vitest) or `npm run test:ci` and report results; agents cannot run Vitest in this sandbox. |
+| Tests | Run vitest. Use Playwright to verify that UI implementations look good in the UI and that there are no bugs on app startup. Prompt the user to run `npm test` (Vitest) or `npm run test:ci` and report results if agent is not able to run vitest itself.|
+| Bug log | Update `BUG_LOG.md` for every bug fix and review it after major changes to avoid regressions. |
+| Smoke test gate | Run a UI smoke pass before finishing; if blocked, state the limitation and request user verification. |
 | Language | **JavaScript only** for new code. Do not introduce TypeScript. |
 | UI stack | React + existing graph utilities; no heavy new deps without approval. |
 
@@ -21,12 +23,13 @@
 Interactive **DAG visual simulation app** (React + Vite) demonstrating causal flow. Last tagged stable snapshot: **causion_app_v1.0** (2025‑10‑12).
 
 ### Core invariants (must never regress)
-1. **Deterministic SCM parsing & layout** – The SCM editor → parser → topology pipeline must surface friendly errors, emit nodes/edges for every referenced identifier, and keep layouts stable (freeform preserves manual coordinates; grid layout regenerates deterministically from `graphSignature`).
-2. **Manual apply + seeded propagation** – SCM draft edits stay isolated until the brass "Apply Changes" button commits them, after which local slider/number edits still update the source display instantly while downstream nodes follow the seeded lag schedule (`features.causalLagMs`) so timing stays reproducible and no affected node is skipped.
+1. **Deterministic SCM parsing & layout** – The SCM editor → parser → topology pipeline must surface friendly errors, emit nodes/edges for every referenced identifier, and keep layouts stable (manual/freeform preserves manual coordinates across DAG edits; grid layout regenerates deterministically from `graphSignature` when SCM changes are applied).
+2. **Manual apply + seeded propagation** – SCM draft edits stay isolated until the brass "Apply Changes" button commits them; DAG panel edits auto-commit immediately into the SCM (updating both draft and committed text) while downstream nodes still follow the seeded lag schedule (`features.causalLagMs`) so timing stays reproducible and no affected node is skipped.
 3. **Clamps, ranges & baselines** – Ephemeral drag clamps release on pointer up, reverting to baseline unless `do()` is enabled; explicit clamps persist values, and slider/number/range inputs stay synchronized while auto-correcting invalid min/max pairs.
 4. **Automation exclusivity** – Triangle‑wave auto slide and random play honor the current range, never run simultaneously for the same variable, and immediately relinquish control when a user clamps, intervenes, or commits a manual value.
 5. **Causal edge signaling** – Marching‑ants pulses remain active when causal flow is on, respect `flowPulseMs`, and degrade gracefully to static straight edges when disabled; anchor handles stay aligned so arrows attach to the closest cardinal face.
 6. **Data visualization sampling** – The floating scatter panel only records samples while “Visualize data” is active, wipes its buffer when axes change or inputs become invalid, and ignores NaN/non-changing pairs so plotted points reflect real propagation.
+7. **Global noise injection** – The “Noise” toggle + amount slider remain available in the Assign Values header, and enabling noise injects Gaussian noise through noise nodes (`U_<var>`) without altering base node layout or breaking propagation.
 
 _Whenever core functionality changes in a way that affects expected behavior, update this invariants list (and the related guidance in AGENTS.md) as part of the same work._
 
@@ -44,17 +47,20 @@ If a change risks any invariant, stop, surface the concern, and mark the PR `nee
 ## 4. Working session checklist
 1. **Clarify the request**: ask follow-up questions when instructions seem ambiguous.
 2. **Plan briefly**: list targeted files, risks, and intended tests before coding.
-3. **Implement minimal change**: avoid broad refactors; keep code novice-friendly with helpful inline comments for non-obvious logic.
-4. **Testing**:
+3. **Feature preservation guardrail (required)**: compare with the previous commit and explicitly list any feature/UI removals; if a removal wasn’t requested, stop and restore it.
+4. **Implement minimal change**: avoid broad refactors; keep code novice-friendly with helpful inline comments for non-obvious logic.
+5. **Testing**:
    - Request that the user runs `npm test` (or `npm run test:ci` for the full suite) and share the results—Vitest does not execute inside this sandbox.
    - Add or update Vitest + React Testing Library specs when behavior changes.
    - Maintain (or add) a smoke test ensuring the app mounts without errors.
   - For slider interactions, ensure tests cover drag → release → auto-unclamp, plus “do()” persistence.
-5. **Manual verification**:
+6. **Manual verification**:
    - `npm run dev`
    - Navigate to the affected UI
    - Verify sliders, propagation, marching-ants, auto slide vs random play toggles, and the “Visualize data” scatter logger all behave as expected.
-6. **Self-check invariants** and document the confirmation in the PR.
+6.5 **Smoke-test gate (required)**: before responding “done,” run a local smoke pass for the affected UI. If you discover a bug, fix it immediately and re-smoke. If you cannot run the UI due to sandbox/tooling limits, explicitly state the limitation and ask the user to run the smoke steps.
+7. **Self-check invariants** and document the confirmation in the PR.
+8. **Review the bug log**: after major changes, read `BUG_LOG.md` and verify no logged bugs were reintroduced; append a new entry when a bug is fixed.
 
 ---
 
@@ -107,6 +113,13 @@ Tick the checklist items in the PR description:
 - Required regression test when modifying sliders: simulate drag + release and assert value/color reset (unless clamped).
 - Keep snapshot tests minimal; prefer assertion-based behavior tests.
 - For asynchronous animations (e.g., marching-ants), consider deterministic timers or helper utils if flakes appear—submit those helpers in a focused PR first.
+
+## 7.5 Smoke testing standard (required)
+- Always run a basic UI smoke pass after any code change that could affect behavior.
+- Minimum: `npm run dev`, open the affected screen, and exercise the primary interactions.
+- If Playwright is available, run a short scripted smoke flow; otherwise do manual steps.
+- Do not mark work complete until smoke steps pass or you’ve clearly documented why you couldn’t run them and what the user must verify.
+- If a bug is found during smoke testing, fix it immediately and log it in `BUG_LOG.md`.
 
 ---
 
