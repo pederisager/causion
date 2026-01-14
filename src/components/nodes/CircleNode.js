@@ -76,10 +76,25 @@ function computeCausionFill(value, min, max) {
   };
 }
 
-export default function CircleNode({ data }) {
+export default function CircleNode({ data, selected }) {
   const { id, value, min = -100, max = 100, stylePreset, doActive, isControlled } = data || {};
   const themePreset = getThemePreset(stylePreset);
   const rangeScale = Math.max(Math.abs(min), Math.abs(max));
+  const canEditName = !!data?.canEditName && typeof data?.onNameEdit === "function";
+  const isSelected = Boolean(selected);
+  const isEditingName = !!data?.isEditingName && typeof data?.onNameCommit === "function";
+  const nameDraft = typeof data?.nameDraft === "string" ? data.nameDraft : id;
+  const isNameActive = !!data?.isNameActive;
+  const isActive = isSelected || isNameActive;
+  const showConnectionHandles = isActive;
+  const inputRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (isEditingName && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditingName]);
 
   const containerBaseStyle = {
     width: NODE_WIDTH,
@@ -92,7 +107,7 @@ export default function CircleNode({ data }) {
     userSelect: "none",
     textAlign: "center",
     padding: themePreset === "causion" ? 8 : 0,
-    overflow: "hidden",
+    overflow: showConnectionHandles ? "visible" : "hidden",
     transition: "background-color 280ms ease, box-shadow 200ms ease, border-color 200ms ease",
   };
 
@@ -123,20 +138,22 @@ export default function CircleNode({ data }) {
     const { fill, intensity, polarity } = computeCausionFill(value, min, max);
     const baseInset = `inset 0 0 0 ${0.6 + intensity * 1.6}px rgba(0,0,0,0.08)`;
     const haloOuter = doActive ? ", 0 0 0 3px rgba(63,58,52,0.18)" : "";
+    const selectionRing = isActive ? ", 0 0 0 4px rgba(63,58,52,0.22)" : "";
     containerStyle = {
       ...containerStyle,
       background: fill,
       border: "2px solid #1f1a17",
-      boxShadow: baseInset + haloOuter,
+      boxShadow: baseInset + haloOuter + selectionRing,
     };
     labelStyle.color = polarity < 0 ? "#3b2621" : "var(--color-text)";
     containerClassName = "causion-node";
   } else {
+    const selectionRing = isActive ? ", 0 0 0 5px rgba(17,17,17,0.16)" : "";
     containerStyle = {
       ...containerStyle,
       background: valueToColorMinimal(value, rangeScale),
       border: "3px solid #111",
-      boxShadow: `0 10px 24px rgba(0,0,0,0.15)${doActive ? ", 0 0 0 3px rgba(17,17,17,0.18)" : ""}`,
+      boxShadow: `0 10px 24px rgba(0,0,0,0.15)${doActive ? ", 0 0 0 3px rgba(17,17,17,0.18)" : ""}${selectionRing}`,
       fontWeight: 800,
       fontSize: 22,
     };
@@ -187,60 +204,150 @@ export default function CircleNode({ data }) {
       })
     : null;
 
+  const handleBaseStyle = {
+    background: "transparent",
+    border: "none",
+  };
+  const sourceHandleStyle = {
+    ...handleBaseStyle,
+    opacity: showConnectionHandles ? 0.5 : 0,
+    pointerEvents: showConnectionHandles ? "auto" : "none",
+  };
+
+  const targetHandleStyle = {
+    ...handleBaseStyle,
+    opacity: 0,
+    pointerEvents: "auto",
+  };
+
+  let labelElement = React.createElement("div", { style: labelStyle }, id);
+  if (isEditingName) {
+    labelElement = React.createElement("input", {
+      ref: inputRef,
+      className: "node-label-input",
+      value: nameDraft,
+      onChange: (event) => data.onNameDraftChange?.(event.target.value),
+      onKeyDown: (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          data.onNameCommit?.({ exitOnError: false });
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          data.onNameCancel?.();
+        }
+      },
+      onBlur: () => data.onNameCommit?.({ exitOnError: true }),
+      onMouseDown: (event) => event.stopPropagation(),
+      onClick: (event) => event.stopPropagation(),
+      "aria-label": `Edit name for ${id}`,
+      style: {
+        ...labelStyle,
+        width: "80%",
+      },
+    });
+  } else if (canEditName) {
+    labelElement = React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "node-label-button",
+        style: {
+          ...labelStyle,
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          margin: 0,
+          cursor: isNameActive ? "text" : "pointer",
+        },
+        "aria-label": `Rename ${id}`,
+        onMouseDown: (event) => event.stopPropagation(),
+        onClick: (event) => {
+          event.stopPropagation();
+          data.onNameEdit(event, id);
+        },
+      },
+      id
+    );
+  }
+
   return React.createElement(
     "div",
     { className: containerClassName, style: containerStyle },
     hatch,
     badge,
-    React.createElement("div", { style: labelStyle }, id),
+    labelElement,
     React.createElement("div", { style: valueStyle }, Number(value ?? 0).toFixed(2)),
     React.createElement(Handle, {
       id: "T_t",
       type: "target",
       position: Position.Top,
-      style: { opacity: 0 },
+      className: "node-handle node-handle--target node-handle--top",
+      style: targetHandleStyle,
+      isConnectableStart: false,
+      isConnectableEnd: true,
     }),
     React.createElement(Handle, {
       id: "R_t",
       type: "target",
       position: Position.Right,
-      style: { opacity: 0 },
+      className: "node-handle node-handle--target node-handle--right",
+      style: targetHandleStyle,
+      isConnectableStart: false,
+      isConnectableEnd: true,
     }),
     React.createElement(Handle, {
       id: "B_t",
       type: "target",
       position: Position.Bottom,
-      style: { opacity: 0 },
+      className: "node-handle node-handle--target node-handle--bottom",
+      style: targetHandleStyle,
+      isConnectableStart: false,
+      isConnectableEnd: true,
     }),
     React.createElement(Handle, {
       id: "L_t",
       type: "target",
       position: Position.Left,
-      style: { opacity: 0 },
+      className: "node-handle node-handle--target node-handle--left",
+      style: targetHandleStyle,
+      isConnectableStart: false,
+      isConnectableEnd: true,
     }),
     React.createElement(Handle, {
       id: "T_s",
       type: "source",
       position: Position.Top,
-      style: { opacity: 0 },
+      className: "node-handle node-handle--source node-handle--top",
+      style: sourceHandleStyle,
+      isConnectableStart: true,
+      isConnectableEnd: false,
     }),
     React.createElement(Handle, {
       id: "R_s",
       type: "source",
       position: Position.Right,
-      style: { opacity: 0 },
+      className: "node-handle node-handle--source node-handle--right",
+      style: sourceHandleStyle,
+      isConnectableStart: true,
+      isConnectableEnd: false,
     }),
     React.createElement(Handle, {
       id: "B_s",
       type: "source",
       position: Position.Bottom,
-      style: { opacity: 0 },
+      className: "node-handle node-handle--source node-handle--bottom",
+      style: sourceHandleStyle,
+      isConnectableStart: true,
+      isConnectableEnd: false,
     }),
     React.createElement(Handle, {
       id: "L_s",
       type: "source",
       position: Position.Left,
-      style: { opacity: 0 },
+      className: "node-handle node-handle--source node-handle--left",
+      style: sourceHandleStyle,
+      isConnectableStart: true,
+      isConnectableEnd: false,
     }),
   );
 }
