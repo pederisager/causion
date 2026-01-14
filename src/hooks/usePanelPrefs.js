@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 const STORAGE_KEY = "causion.dataPanel.prefs";
 const DEFAULT_PREFS = {
-  isOpen: true,
+  isOpen: false,
   dockPreference: "right",
   sizeRightPx: 360,
   sizeBottomPx: 320,
