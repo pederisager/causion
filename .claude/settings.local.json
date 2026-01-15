@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash([ -d .github ])",
+      "Bash(npm test:*)",
+      "Bash(node --test:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx vitest:*)"
+    ]
+  }
+}
