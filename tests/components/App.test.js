@@ -18,7 +18,6 @@ describe("App", () => {
 
     renderWithProviders(React.createElement(App));
 
-    expect(screen.queryByText("Dev Panel (feature flags)")).toBeNull();
     expect(screen.queryByRole("region", { name: /advanced functions/i })).toBeNull();
 
     const toggleButton = screen.getByRole("button", { name: /advanced functions/i });
@@ -30,7 +29,7 @@ describe("App", () => {
       "true"
     );
     expect(screen.getByRole("region", { name: /advanced functions/i })).toBeInTheDocument();
-    expect(await screen.findByText("Dev Panel (feature flags)")).toBeInTheDocument();
+    expect(await screen.findByText("Assign Values")).toBeInTheDocument();
   });
 
   it("keeps the random toggle available while do() is active", async () => {

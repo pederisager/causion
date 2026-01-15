@@ -126,7 +126,7 @@ Tick the checklist items in the PR description:
 ## 8. Repository structure (guide only)
 - `src/`
   - `App.js` / `main.jsx` — app entry + React Flow wiring.
-  - `components/` — nodes, edges, DevPanel, slider stack, and the DataVisualizationPanel overlay.
+  - `components/` — nodes, edges, slider stack, and the DataVisualizationPanel overlay.
   - `hooks/` — `useScmModel`, `usePropagationEffects`, `useNodeGraph`, and supporting logic.
   - `graph/` — SCM parsing, topology, and math helpers.
   - `data/` — presets, waveform helpers, and other shared constants.

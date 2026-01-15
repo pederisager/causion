@@ -86,7 +86,7 @@ describe("App phone layout & flow safety", () => {
     expect(deleteKeyCode).toBeNull();
   });
 
-  it("keeps the DAG canvas mounted in overlay mode on phones", () => {
+  it("keeps the DAG canvas mounted in bottom dock mode on phones", () => {
     setViewport(600, 900);
     const restoreMatchMedia = mockMatchMedia();
     const { createApp } = __TEST_ONLY__;
@@ -96,7 +96,7 @@ describe("App phone layout & flow safety", () => {
       renderWithProviders(React.createElement(App));
 
       const dock = document.querySelector("[data-dock-mode]");
-      expect(dock).toHaveAttribute("data-dock-mode", "overlay");
+      expect(dock).toHaveAttribute("data-dock-mode", "bottom");
       expect(document.querySelector(".phone-dag-canvas")).toBeInTheDocument();
     } finally {
       restoreMatchMedia();

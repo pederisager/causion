@@ -41,7 +41,6 @@ import { topoSort } from "./graph/topology.js";
 import { buildGraphSignature } from "./utils/graphSignature.js";
 import { buildNoiseAugmentedGraph } from "./utils/noiseUtils.js";
 
-const DevPanel = lazy(() => import("./components/panels/DevPanel.js"));
 const CheatSheetModal = lazy(() => import("./components/panels/CheatSheetModal.jsx"));
 
 const defaultFeatures = { ...DEFAULT_FEATURE_FLAGS };
@@ -1402,24 +1401,6 @@ export function createApp(overrides = {}) {
         )
       : null;
 
-    const devPanelContent = h(
-      Suspense,
-      {
-        fallback: h("div", { className: panelBaseClass }, "Loading dev panel…"),
-      },
-      h(DevPanel, {
-        features,
-        setFeatures,
-        selectOptions: {
-          stylePreset: [
-            { value: "causion", label: "Causion" },
-            { value: "minimal", label: "Minimal" },
-          ],
-        },
-        themePreset,
-      })
-    );
-
     const leftColumn = isAdvancedPanelVisible
       ? h(
           "div",
@@ -1438,7 +1419,6 @@ export function createApp(overrides = {}) {
           assignPanel,
           scmPanel,
           phoneUtilityPanel,
-          devPanelContent,
           dockedApply
         )
       : null;
