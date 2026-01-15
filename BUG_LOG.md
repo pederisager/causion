@@ -251,3 +251,12 @@ How to use:
 - Tests: Not run (sandbox).
 - Regression check: Not run (needs manual smoke in phone layout).
 - Commit/PR: Not committed.
+
+## 2026-01-15 — nodes disappear after editing edge formulas
+- Area: DAG panel / SCM mutations / edge editing
+- Symptom: Creating a new node and then editing an edge formula causes the new node to disappear from both the DAG and SCM. Sometimes affects newly created edges as well. Intermittent behavior.
+- Root cause: Stale closure in `handleEdgeCoefficientCommit` and other DAG mutation callbacks. When user performs rapid actions (e.g., creates node, immediately edits edge), React's state update hasn't propagated yet, so `appliedScmText` in the callback closure contains old SCM text without the newly created node. Subsequent `upsertEdgeCoefficient` call uses this stale text and overwrites the committed state, losing the new node.
+- Fix: Store `appliedScmText` in a ref (`appliedScmTextRef`) that's kept in sync via `useEffect`. Update all DAG mutation callbacks (`handleEdgeCoefficientCommit`, `handleRenameCommit`, `handleCreateNode`, `handleConnect`, `handleDeleteSelectedEdge`, `handleDeleteSelectedNode`) to read from `appliedScmTextRef.current` instead of using the closure value. This ensures mutations always operate on the most current SCM text.
+- Tests: Added `tests/integration/edge-edit-preserves-nodes.test.js` to verify nodes are preserved after edge edits. All existing tests pass (10 pass, 1 pre-existing failure unrelated to this fix).
+- Regression check: Manual testing should verify: (1) create node, immediately edit edge formula → node persists; (2) create edge, edit existing edge → both edges persist; (3) rename node, edit edge → both actions succeed.
+- Commit/PR: uncommitted

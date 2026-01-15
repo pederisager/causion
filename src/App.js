@@ -163,6 +163,15 @@ export function createApp(overrides = {}) {
       appliedScmText,
     } = useScmModel(defaultPreset);
 
+    // Use a ref to store the latest appliedScmText to avoid stale closures
+    // in callbacks that mutate the SCM. Without this, rapid user actions
+    // (e.g., creating a node then immediately editing an edge) could use
+    // stale SCM text, causing nodes to disappear.
+    const appliedScmTextRef = useRef(appliedScmText);
+    useEffect(() => {
+      appliedScmTextRef.current = appliedScmText;
+    }, [appliedScmText]);
+
     const noiseConfig = useMemo(
       () => ({ enabled: noiseEnabled, amount: noiseAmount }),
       [noiseEnabled, noiseAmount]
@@ -246,7 +255,7 @@ export function createApp(overrides = {}) {
         }
         try {
           const nextText = upsertEdgeCoefficient(
-            appliedScmText,
+            appliedScmTextRef.current,
             parent,
             child,
             coefficient,
@@ -257,7 +266,7 @@ export function createApp(overrides = {}) {
           showDagNotice(err?.message || "Unable to update edge.");
         }
       },
-      [appliedScmText, commitDagScmText, guardDagEdits, showDagNotice, upsertEdgeCoefficient]
+      [commitDagScmText, guardDagEdits, showDagNotice, upsertEdgeCoefficient]
     );
 
     const isAssignmentsPaused = propagation.isAssignmentsPaused;
@@ -344,7 +353,7 @@ export function createApp(overrides = {}) {
             setLayoutLock(true);
             setPositionOverrides((prev) => ({ ...prev, [trimmed]: currentPos }));
           }
-          const nextText = renameNodeInScm(appliedScmText, editingNodeId, trimmed);
+          const nextText = renameNodeInScm(appliedScmTextRef.current, editingNodeId, trimmed);
           const result = commitDagScmText(nextText);
           if (result.ok) {
             setActiveNodeId(trimmed);
@@ -362,7 +371,6 @@ export function createApp(overrides = {}) {
       },
       [
         allVars,
-        appliedScmText,
         cancelNodeRename,
         commitDagScmText,
         editingNodeDraft,
@@ -549,7 +557,7 @@ export function createApp(overrides = {}) {
             [trimmed]: nodePrompt.flowPosition,
           }));
         }
-        const nextText = addNodeToScm(appliedScmText, trimmed);
+        const nextText = addNodeToScm(appliedScmTextRef.current, trimmed);
         const result = commitDagScmText(nextText);
         if (result.ok) {
           setNodePrompt(null);
@@ -559,7 +567,7 @@ export function createApp(overrides = {}) {
       } catch (err) {
         setNodeNameError(err?.message || "Unable to add node.");
       }
-    }, [addNodeToScm, allVars, appliedScmText, commitDagScmText, guardDagEdits, isValidScmName, nodeNameDraft, nodePrompt]);
+    }, [addNodeToScm, allVars, commitDagScmText, guardDagEdits, isValidScmName, nodeNameDraft, nodePrompt]);
 
     const handleNodeClick = useCallback(
       (event, node) => {
@@ -611,7 +619,7 @@ export function createApp(overrides = {}) {
       }
       try {
         const nextText = upsertEdgeCoefficient(
-          appliedScmText,
+          appliedScmTextRef.current,
           connection.source,
           connection.target,
           1
@@ -620,7 +628,7 @@ export function createApp(overrides = {}) {
       } catch (err) {
         showDagNotice(err?.message || "Unable to add edge.");
       }
-    }, [appliedScmText, commitDagScmText, guardDagEdits, isValidConnection, showDagNotice, upsertEdgeCoefficient]);
+    }, [commitDagScmText, guardDagEdits, isValidConnection, showDagNotice, upsertEdgeCoefficient]);
 
     const getSelectedNodeId = useCallback(() => {
       if (activeNodeId) return activeNodeId;
@@ -643,7 +651,7 @@ export function createApp(overrides = {}) {
         return true;
       }
       try {
-        const nextText = removeEdgeFromScm(appliedScmText, parent, child);
+        const nextText = removeEdgeFromScm(appliedScmTextRef.current, parent, child);
         const result = commitDagScmText(nextText);
         if (!result.ok) {
           showDagNotice(result.error || "Failed to remove edge.");
@@ -652,14 +660,14 @@ export function createApp(overrides = {}) {
         showDagNotice(err?.message || "Unable to delete edge.");
       }
       return true;
-    }, [appliedScmText, commitDagScmText, getSelectedEdgeId, guardDagEdits, removeEdgeFromScm, showDagNotice]);
+    }, [commitDagScmText, getSelectedEdgeId, guardDagEdits, removeEdgeFromScm, showDagNotice]);
 
     const handleDeleteSelectedNode = useCallback(() => {
       const nodeId = getSelectedNodeId();
       if (!nodeId) return false;
       if (!guardDagEdits()) return true;
       try {
-        const nextText = removeNodeFromScm(appliedScmText, nodeId);
+        const nextText = removeNodeFromScm(appliedScmTextRef.current, nodeId);
         const result = commitDagScmText(nextText);
         if (!result.ok) {
           showDagNotice(result.error || "Failed to remove node.");
@@ -680,7 +688,6 @@ export function createApp(overrides = {}) {
       }
       return true;
     }, [
-      appliedScmText,
       commitDagScmText,
       getSelectedNodeId,
       guardDagEdits,
