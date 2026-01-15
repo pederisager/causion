@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { SCATTER_SAMPLE_INTERVAL_MS } from "./constants.js";
 import {
@@ -6,6 +6,12 @@ import {
   buildLoessLine,
   computeResidualizedSamples,
 } from "../utils/regressionUtils.js";
+import {
+  generateSamples,
+  getUserVariables,
+  samplesToCSV,
+  downloadCSV,
+} from "../utils/csvSimulation.js";
 
 function detectThemePreset(explicitPreset) {
   if (explicitPreset) return explicitPreset;
@@ -253,6 +259,9 @@ export default function DataVizPanel({
   onClose = () => {},
   containerRef,
   headingRef,
+  model,
+  eqs,
+  noiseConfig = { enabled: false, amount: 0 },
 }) {
   const resolvedTheme = detectThemePreset(themePreset);
   const isCausion = resolvedTheme === "causion";
@@ -263,6 +272,8 @@ export default function DataVizPanel({
   const [samples, setSamples] = useState([]);
   const [fitMode, setFitMode] = useState("none");
   const [isControlMenuOpen, setIsControlMenuOpen] = useState(false);
+  const [sampleSize, setSampleSize] = useState(100);
+  const [isSimulating, setIsSimulating] = useState(false);
 
   const intervalRef = useRef(null);
   const lastAxesRef = useRef({ x: "", y: "" });
@@ -416,6 +427,33 @@ export default function DataVizPanel({
   const handleFitModeChange = (event) => {
     setFitMode(event.target.value);
   };
+
+  const handleSimulate = useCallback(() => {
+    if (!model || !eqs || sampleSize < 1) return;
+    setIsSimulating(true);
+    // Use setTimeout to avoid blocking UI during generation
+    setTimeout(() => {
+      try {
+        const generatedSamples = generateSamples({
+          model,
+          eqs,
+          allVars,
+          values,
+          interventions,
+          ranges,
+          noiseConfig,
+          sampleCount: sampleSize,
+        });
+        const columns = getUserVariables(allVars);
+        const csv = samplesToCSV(generatedSamples, columns);
+        downloadCSV(csv, `causion-simulation-${Date.now()}.csv`);
+      } catch (error) {
+        console.error("Simulation error:", error);
+      } finally {
+        setIsSimulating(false);
+      }
+    }, 0);
+  }, [model, eqs, allVars, values, interventions, ranges, noiseConfig, sampleSize]);
 
   const controlOptions = useMemo(() => options, [options]);
 
@@ -780,6 +818,58 @@ export default function DataVizPanel({
                 ) : null}
                 <p className={joinClasses("text-xs", isCausion ? "" : "text-slate-500")} style={helperTextStyle}>
                   Points update when tracked variables change.
+                </p>
+              </div>
+            </div>
+
+            <div
+              className={joinClasses(
+                "rounded-lg border px-3 py-3",
+                isCausion ? "border-[var(--color-ink-border)]" : "border-slate-200"
+              )}
+            >
+              <p
+                className={joinClasses(
+                  "text-[0.7rem] uppercase tracking-[0.28em]",
+                  isCausion ? "" : "text-slate-500"
+                )}
+                style={helperTextStyle}
+              >
+                Simulate
+              </p>
+              <div className="mt-3 flex flex-col gap-3 text-xs">
+                <label className="flex flex-col gap-1">
+                  Sample size
+                  <input
+                    type="number"
+                    min={1}
+                    max={100000}
+                    value={sampleSize}
+                    onChange={(e) =>
+                      setSampleSize(Math.max(1, Math.min(100000, Number(e.target.value) || 100)))
+                    }
+                    className={isCausion ? "causion-field text-sm" : "border rounded px-2 py-1 text-sm"}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className={joinClasses(
+                    "px-3 py-2 rounded text-sm font-medium transition",
+                    isCausion
+                      ? "btn-outline"
+                      : "border border-slate-300 bg-white hover:bg-slate-50",
+                    isSimulating && "opacity-50 cursor-not-allowed"
+                  )}
+                  onClick={handleSimulate}
+                  disabled={isSimulating || !model || sampleSize < 1}
+                >
+                  {isSimulating ? "Generating..." : "Export CSV"}
+                </button>
+                <p className={joinClasses("text-xs", isCausion ? "" : "text-slate-500")} style={helperTextStyle}>
+                  {noiseConfig?.enabled
+                    ? `Each row varies noise nodes with Gaussian noise (scale: ${((noiseConfig.amount || 0) * 100).toFixed(0)}%).`
+                    : "Root nodes (no parents) are varied uniformly within their ranges."}
+                  {Object.values(interventions || {}).some(Boolean) && " Active do() interventions are respected."}
                 </p>
               </div>
             </div>

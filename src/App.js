@@ -1061,7 +1061,7 @@ export function createApp(overrides = {}) {
             isCausion ? "tracking-[0.08em]" : "mb-2"
           ),
         },
-        "SCM"
+        "Structural Causal Model"
       ),
       h(
         "div",
@@ -1610,7 +1610,7 @@ export function createApp(overrides = {}) {
     const canvasWrapperStyle = undefined;
 
     const dataVizPanel = h(DataVizPanel, {
-      allVars,
+      allVars: graphAllVars,
       values: propagation.sampleValues,
       themePreset,
       controlledVars,
@@ -1625,6 +1625,9 @@ export function createApp(overrides = {}) {
       onClose: handleDataPanelClose,
       containerRef: dataPanelRef,
       headingRef: dataPanelHeadingRef,
+      model,
+      eqs: graphEqs,
+      noiseConfig,
     });
 
     const dagCanvas = h(
