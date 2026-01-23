@@ -258,7 +258,225 @@ function dotRow(row, coefficients) {
   return total;
 }
 
+/**
+ * Compute Pearson's correlation coefficient and related statistics.
+ * Returns { r, slope, pValue, n } or null if computation is not possible.
+ *
+ * @param {Array<{x: number, y: number}>} points - Array of data points
+ * @returns {{r: number, slope: number, pValue: number, n: number} | null}
+ */
+export function computeCorrelationStats(points) {
+  const n = points.length;
+  if (n < 3) return null;
+
+  // Calculate means
+  let sumX = 0;
+  let sumY = 0;
+  for (const point of points) {
+    sumX += point.x;
+    sumY += point.y;
+  }
+  const meanX = sumX / n;
+  const meanY = sumY / n;
+
+  // Calculate variances and covariance
+  let varX = 0;
+  let varY = 0;
+  let covXY = 0;
+  for (const point of points) {
+    const dx = point.x - meanX;
+    const dy = point.y - meanY;
+    varX += dx * dx;
+    varY += dy * dy;
+    covXY += dx * dy;
+  }
+
+  // Handle zero variance (correlation undefined)
+  if (Math.abs(varX) < DEFAULT_EPSILON || Math.abs(varY) < DEFAULT_EPSILON) {
+    return null;
+  }
+
+  const r = covXY / Math.sqrt(varX * varY);
+  const slope = covXY / varX;
+  const pValue = computePValue(r, n);
+
+  return { r, slope, pValue, n };
+}
+
+/**
+ * Compute two-tailed p-value for testing H0: rho = 0
+ * Uses t-distribution with df = n - 2
+ *
+ * @param {number} r - Pearson's correlation coefficient
+ * @param {number} n - Sample size
+ * @returns {number} Two-tailed p-value
+ */
+function computePValue(r, n) {
+  if (n < 3) return NaN;
+  if (!Number.isFinite(r)) return NaN;
+
+  // Perfect correlation: p = 0
+  if (Math.abs(r) >= 1 - DEFAULT_EPSILON) return 0;
+
+  const df = n - 2;
+  const rSquared = r * r;
+  const t = Math.abs(r) * Math.sqrt(df / (1 - rSquared));
+
+  // Two-tailed p-value from t-distribution
+  return tDistributionPValue(t, df);
+}
+
+/**
+ * Compute two-tailed p-value from t-distribution using incomplete beta function.
+ * P(|T| > t) = I_{x}(df/2, 1/2) where x = df / (df + t^2)
+ *
+ * @param {number} t - Absolute value of t-statistic
+ * @param {number} df - Degrees of freedom
+ * @returns {number} Two-tailed p-value
+ */
+function tDistributionPValue(t, df) {
+  if (df <= 0 || !Number.isFinite(t)) return NaN;
+  if (t === 0) return 1;
+
+  const x = df / (df + t * t);
+  return betaIncomplete(df / 2, 0.5, x);
+}
+
+/**
+ * Regularized incomplete beta function I_x(a, b) using continued fraction expansion.
+ * This is used for computing p-values from t-distribution.
+ *
+ * @param {number} a - First shape parameter
+ * @param {number} b - Second shape parameter
+ * @param {number} x - Upper limit of integration (0 <= x <= 1)
+ * @returns {number} Value of regularized incomplete beta function
+ */
+function betaIncomplete(a, b, x) {
+  if (x < 0 || x > 1) return NaN;
+  if (x === 0) return 0;
+  if (x === 1) return 1;
+
+  // Use symmetry relation for numerical stability
+  // I_x(a,b) = 1 - I_{1-x}(b,a)
+  if (x > (a + 1) / (a + b + 2)) {
+    return 1 - betaIncomplete(b, a, 1 - x);
+  }
+
+  // Continued fraction representation (Lentz's algorithm)
+  const maxIterations = 200;
+  const epsilon = 1e-14;
+
+  // Compute ln(Beta(a,b)) using log-gamma approximation
+  const lnBeta = lnGamma(a) + lnGamma(b) - lnGamma(a + b);
+
+  // Front factor: x^a * (1-x)^b / (a * Beta(a,b))
+  const front = Math.exp(a * Math.log(x) + b * Math.log(1 - x) - lnBeta) / a;
+
+  // Continued fraction coefficients
+  let f = 1;
+  let c = 1;
+  let d = 0;
+
+  for (let m = 0; m <= maxIterations; m++) {
+    let numerator;
+    if (m === 0) {
+      numerator = 1;
+    } else if (m % 2 === 0) {
+      // Even terms
+      const k = m / 2;
+      numerator = (k * (b - k) * x) / ((a + 2 * k - 1) * (a + 2 * k));
+    } else {
+      // Odd terms
+      const k = (m - 1) / 2;
+      numerator = -((a + k) * (a + b + k) * x) / ((a + 2 * k) * (a + 2 * k + 1));
+    }
+
+    d = 1 + numerator * d;
+    if (Math.abs(d) < epsilon) d = epsilon;
+    d = 1 / d;
+
+    c = 1 + numerator / c;
+    if (Math.abs(c) < epsilon) c = epsilon;
+
+    const delta = c * d;
+    f *= delta;
+
+    if (Math.abs(delta - 1) < epsilon) {
+      return front * (f - 1);
+    }
+  }
+
+  // Convergence not achieved, return best estimate
+  return front * (f - 1);
+}
+
+/**
+ * Log-gamma function approximation using Stirling's series.
+ * Accurate for x > 0.
+ *
+ * @param {number} x - Input value
+ * @returns {number} ln(Gamma(x))
+ */
+function lnGamma(x) {
+  if (x <= 0) return NaN;
+
+  // Coefficients for Lanczos approximation of log-gamma function
+  const coefficients = [
+    76.1800917294715, -86.5053203294168, 24.0140982408309, -1.23173957245024,
+    0.00120865097386618, -5.39523938495e-6,
+  ];
+
+  let y = x;
+  let tmp = x + 5.5;
+  tmp -= (x + 0.5) * Math.log(tmp);
+
+  let sum = 1.00000000019001;
+  for (let i = 0; i < coefficients.length; i++) {
+    y += 1;
+    sum += coefficients[i] / y;
+  }
+
+  return -tmp + Math.log((2.506628274631 * sum) / x);
+}
+
+/**
+ * Format a numeric statistic for display.
+ *
+ * @param {number | null | undefined} value - Value to format
+ * @param {number} decimals - Number of decimal places (default: 2)
+ * @returns {string} Formatted string or "NA"
+ */
+export function formatStat(value, decimals = 2) {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return "NA";
+  }
+  return value.toFixed(decimals);
+}
+
+/**
+ * Format a p-value for display with appropriate precision.
+ * Uses scientific notation for very small values.
+ *
+ * @param {number | null | undefined} p - P-value to format
+ * @returns {string} Formatted string or "NA"
+ */
+export function formatPValue(p) {
+  if (p === null || p === undefined || !Number.isFinite(p)) {
+    return "NA";
+  }
+  if (p < 0.001) {
+    return "<.001";
+  }
+  if (p < 0.01) {
+    return p.toFixed(3);
+  }
+  return p.toFixed(2);
+}
+
 export const __TEST_ONLY__ = {
   solveLinearSystem,
   getSampleValue,
+  computePValue,
+  betaIncomplete,
+  lnGamma,
 };

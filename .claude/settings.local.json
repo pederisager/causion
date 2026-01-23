@@ -6,7 +6,11 @@
       "Bash(node --test:*)",
       "Bash(npm run build:*)",
       "Bash(npx vitest:*)",
-      "Bash(taskkill /F /FI \"WINDOWTITLE eq npm*\")"
+      "Bash(taskkill /F /FI \"WINDOWTITLE eq npm*\")",
+      "Bash(npm run test:ci:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run lint:*)",
+      "Bash(npx eslint:*)"
     ]
   }
 }

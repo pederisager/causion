@@ -5,6 +5,9 @@ import {
   buildLinearLine,
   buildLoessLine,
   computeResidualizedSamples,
+  computeCorrelationStats,
+  formatStat,
+  formatPValue,
 } from "../utils/regressionUtils.js";
 import {
   generateSamples,
@@ -477,6 +480,13 @@ export default function DataVizPanel({
     return null;
   }, [adjustedSamples, fitMode]);
 
+  const correlationStats = useMemo(() => {
+    if (!adjustedSamples || adjustedSamples.length < 3) {
+      return null;
+    }
+    return computeCorrelationStats(adjustedSamples);
+  }, [adjustedSamples]);
+
   const helperTextStyle = isCausion
     ? { color: "var(--color-text-muted)", fontFamily: "var(--font-body)" }
     : undefined;
@@ -655,7 +665,18 @@ export default function DataVizPanel({
                 yDomain={yDomain}
               />
               <div className="flex items-center justify-between gap-3">
-                <span className={badgeClass}>n={samples.length}</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={badgeClass}>n={samples.length}</span>
+                  <span className={badgeClass}>
+                    {"\u03B2"}={correlationStats ? formatStat(correlationStats.slope) : "NA"}
+                  </span>
+                  <span className={badgeClass}>
+                    r={correlationStats ? formatStat(correlationStats.r) : "NA"}
+                  </span>
+                  <span className={badgeClass}>
+                    p={correlationStats ? formatPValue(correlationStats.pValue) : "NA"}
+                  </span>
+                </div>
                 <button
                   type="button"
                   className={clearButtonClass}
