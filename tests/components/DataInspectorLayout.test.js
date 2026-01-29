@@ -19,7 +19,9 @@ function setViewport(width, height = 900) {
 
 describe("Data inspector layout", () => {
   beforeEach(() => {
-    window.localStorage?.clear();
+    if (typeof window.localStorage?.clear === "function") {
+      window.localStorage.clear();
+    }
     setViewport(1200, 900);
 
     // Mock matchMedia to use window.innerWidth so setViewport works in tests
