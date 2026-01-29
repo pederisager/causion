@@ -21,6 +21,20 @@ describe("Data inspector layout", () => {
   beforeEach(() => {
     window.localStorage?.clear();
     setViewport(1200, 900);
+
+    // Mock matchMedia to use window.innerWidth so setViewport works in tests
+    window.matchMedia = (query) => {
+      const minMatch = query.match(/min-width:\s*(\d+)px/);
+      const matches = minMatch ? window.innerWidth >= Number(minMatch[1]) : true;
+      return {
+        matches,
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+      };
+    };
   });
 
   it("toggles the data inspector open and closed", () => {
@@ -29,12 +43,21 @@ describe("Data inspector layout", () => {
 
     renderWithProviders(React.createElement(App));
 
-    const toggleButton = screen.getByRole("button", { name: /hide data/i });
-    expect(toggleButton).toHaveAttribute("aria-expanded", "true");
+    // Panel starts closed by default
+    const toggleButton = screen.getByRole("button", { name: /visualize data/i });
+    expect(toggleButton).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("region", { name: /data/i })).toBeNull();
+
+    // Open the panel
+    fireEvent.click(toggleButton);
+    expect(screen.getByRole("button", { name: /hide data/i })).toHaveAttribute(
+      "aria-expanded",
+      "true"
+    );
     expect(screen.getByRole("region", { name: /data/i })).toBeInTheDocument();
 
-    fireEvent.click(toggleButton);
-
+    // Close the panel
+    fireEvent.click(screen.getByRole("button", { name: /hide data/i }));
     expect(screen.getByRole("button", { name: /visualize data/i })).toHaveAttribute(
       "aria-expanded",
       "false"
@@ -66,20 +89,15 @@ describe("Data inspector layout", () => {
     expect(dock).toHaveAttribute("data-dock-mode", "bottom");
   });
 
-  it("shows the overlay sheet on small screens and closes via scrim", () => {
+  it("uses bottom dock on small screens (phone layout)", () => {
     setViewport(600, 900);
     const { createApp } = __TEST_ONLY__;
     const { App } = createApp(reactFlowBridgeStub);
 
     renderWithProviders(React.createElement(App));
 
+    // Small screens (width <= 900 or height <= 600) use phone layout with bottom dock
     const dock = document.querySelector("[data-dock-mode]");
-    expect(dock).toHaveAttribute("data-dock-mode", "overlay");
-
-    expect(screen.getByRole("dialog", { name: /data/i })).toBeInTheDocument();
-    const scrim = screen.getByTestId("dock-scrim");
-    fireEvent.click(scrim);
-
-    expect(screen.queryByRole("dialog", { name: /data/i })).toBeNull();
+    expect(dock).toHaveAttribute("data-dock-mode", "bottom");
   });
 });
