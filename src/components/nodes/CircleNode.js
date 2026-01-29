@@ -112,22 +112,26 @@ export default function CircleNode({ data, selected }) {
   };
 
   const valueStyle = {
-    fontSize: themePreset === "causion" ? 14 : 14,
+    fontSize: themePreset === "causion" ? 12 : 12,
     fontWeight: 600,
-    marginTop: themePreset === "causion" ? 4 : 6,
+    marginTop: themePreset === "causion" ? 10 : 12,
     opacity: 0.9,
     fontFamily: themePreset === "causion" ? "var(--font-mono)" : undefined,
     color: themePreset === "causion" ? "var(--color-text-muted)" : undefined,
   };
 
   const labelStyle = {
-    fontSize: themePreset === "causion" ? 18 : 22,
+    fontSize: themePreset === "causion" ? 14 : 16,
     fontWeight: themePreset === "causion" ? 600 : 800,
-    letterSpacing: themePreset === "causion" ? "0.08em" : undefined,
+    letterSpacing: themePreset === "causion" ? "0.06em" : undefined,
     fontFamily: themePreset === "causion" ? "var(--font-mono)" : undefined,
-    maxWidth: "80%",
-    whiteSpace: "nowrap",
+    maxWidth: "90%",
+    lineHeight: 1.15,
     overflow: "hidden",
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    wordBreak: "break-word",
     textOverflow: "ellipsis",
   };
 
