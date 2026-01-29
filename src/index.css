@@ -394,3 +394,75 @@ body.phone-ui-mode {
   flex-wrap: wrap;
   gap: 0.35rem;
 }
+
+/* Dock panel resizer - blends into background with subtle hover indicator */
+.dock-resizer {
+  transition: background-color 150ms ease;
+}
+
+/* Horizontal resizer (vertical bar between panels) */
+.dock-resizer[aria-orientation="vertical"]::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 32px;
+  border-radius: 1px;
+  background: rgba(148, 163, 184, 0);
+  transition: background-color 150ms ease, height 150ms ease;
+}
+
+.dock-resizer[aria-orientation="vertical"]:hover::before,
+.dock-resizer[aria-orientation="vertical"]:focus-visible::before {
+  background: rgba(148, 163, 184, 0.5);
+  height: 48px;
+}
+
+.dock-resizer[aria-orientation="vertical"]:active::before {
+  background: rgba(148, 163, 184, 0.7);
+}
+
+/* Vertical resizer (horizontal bar between panels) */
+.dock-resizer[aria-orientation="horizontal"]::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(148, 163, 184, 0);
+  transition: background-color 150ms ease, width 150ms ease;
+}
+
+.dock-resizer[aria-orientation="horizontal"]:hover::before,
+.dock-resizer[aria-orientation="horizontal"]:focus-visible::before {
+  background: rgba(148, 163, 184, 0.5);
+  width: 48px;
+}
+
+.dock-resizer[aria-orientation="horizontal"]:active::before {
+  background: rgba(148, 163, 184, 0.7);
+}
+
+/* Causion theme adjustments */
+body.theme-causion .dock-resizer[aria-orientation="vertical"]:hover::before,
+body.theme-causion .dock-resizer[aria-orientation="vertical"]:focus-visible::before {
+  background: rgba(64, 55, 44, 0.35);
+}
+
+body.theme-causion .dock-resizer[aria-orientation="vertical"]:active::before {
+  background: rgba(64, 55, 44, 0.5);
+}
+
+body.theme-causion .dock-resizer[aria-orientation="horizontal"]:hover::before,
+body.theme-causion .dock-resizer[aria-orientation="horizontal"]:focus-visible::before {
+  background: rgba(64, 55, 44, 0.35);
+}
+
+body.theme-causion .dock-resizer[aria-orientation="horizontal"]:active::before {
+  background: rgba(64, 55, 44, 0.5);
+}

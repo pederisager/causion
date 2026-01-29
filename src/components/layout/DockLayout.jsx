@@ -22,10 +22,13 @@ export default function DockLayout({
   const sizeStyle = isRight ? { width: sizePx } : { height: sizePx };
   const secondaryStyle = isOpen ? sizeStyle : { ...sizeStyle, display: "none" };
   const resizerDirection = isRight ? "horizontal" : "vertical";
+  // Wide hit area (w-4/h-4 = 16px) but visually subtle:
+  // - transparent background that shows a thin centered line on hover
+  // - the line is created via a pseudo-element in CSS (see index.css)
   const resizerClass = joinClasses(
-    "flex-shrink-0 bg-slate-300/70 hover:bg-slate-400/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400",
-    "relative z-20",
-    isRight ? "w-3 cursor-col-resize" : "h-3 cursor-row-resize"
+    "flex-shrink-0 bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/50",
+    "relative z-20 group dock-resizer",
+    isRight ? "w-4 cursor-col-resize" : "h-4 cursor-row-resize"
   );
 
   return (
