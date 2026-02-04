@@ -40,6 +40,7 @@ import {
 import { topoSort } from "./graph/topology.js";
 import { buildGraphSignature } from "./utils/graphSignature.js";
 import { buildNoiseAugmentedGraph } from "./utils/noiseUtils.js";
+import { computeEdgeDsepMap } from "./graph/dseparation.js";
 
 const CheatSheetModal = lazy(() => import("./components/panels/CheatSheetModal.jsx"));
 
@@ -83,6 +84,7 @@ export function createApp(overrides = {}) {
     const [forcePhoneLayout, setForcePhoneLayout] = useState(false);
     const [advancedOpenMap, setAdvancedOpenMap] = useState({});
     const [controlledVars, setControlledVars] = useState([]);
+    const [dataVizAxes, setDataVizAxes] = useState({ x: "", y: "" });
     const [activeNodeId, setActiveNodeId] = useState(null);
     const [nodePrompt, setNodePrompt] = useState(null);
     const [editingNodeId, setEditingNodeId] = useState(null);
@@ -186,6 +188,20 @@ export function createApp(overrides = {}) {
 
     const graphSignature = useMemo(() => buildGraphSignature(graphEqs), [graphEqs]);
 
+    const edgeDsepMap = useMemo(
+      () =>
+        computeEdgeDsepMap({
+          eqs: graphEqs,
+          x: dataVizAxes.x,
+          y: dataVizAxes.y,
+          controls: controlledVars,
+          excludeNodes: noiseNodes,
+          maxDepth: 8,
+          maxPaths: 250,
+        }),
+      [graphEqs, dataVizAxes, controlledVars, noiseNodes]
+    );
+
     const showDagNotice = useCallback((message) => {
       if (dagNoticeTimerRef.current) {
         clearTimeout(dagNoticeTimerRef.current);
@@ -287,6 +303,7 @@ export function createApp(overrides = {}) {
       onEdgeCoefficientCommit: handleEdgeCoefficientCommit,
       positionOverrides,
       layoutLock,
+      edgeDsepMap,
     });
     const handleNodesChange = useCallback(
       (changes) => {
@@ -1609,6 +1626,7 @@ export function createApp(overrides = {}) {
       showDockSelector: isLgViewport,
       onDockPreferenceChange: handleDockPreferenceChange,
       onControlledVarsChange: setControlledVars,
+      onAxesChange: setDataVizAxes,
       onClose: handleDataPanelClose,
       containerRef: dataPanelRef,
       headingRef: dataPanelHeadingRef,

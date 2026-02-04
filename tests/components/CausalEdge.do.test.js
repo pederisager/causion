@@ -22,7 +22,13 @@ const renderEdge = (props) =>
 describe("CausalEdge with do() on target", () => {
   it("ghosts the edge and suppresses marching ants even if hot", () => {
     const { container } = renderEdge({
-      data: { hot: true, disabledByDo: true, pulseMs: 600, stylePreset: "minimal" },
+      data: {
+        hot: true,
+        disabledByDo: true,
+        pulseMs: 600,
+        stylePreset: "minimal",
+        dsepColor: "var(--edge-color-bad)",
+      },
     });
 
     // No marching ants path should be present

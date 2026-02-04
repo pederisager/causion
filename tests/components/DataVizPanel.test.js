@@ -55,6 +55,23 @@ describe("DataVizPanel", () => {
     expect(handleControls).toHaveBeenCalledWith(["C"]);
   });
 
+  it("notifies when axes selections change", () => {
+    const handleAxes = vi.fn();
+    const { getByRole } = renderPanel(
+      allVars,
+      { A: 0, B: 0, C: 0 },
+      { onAxesChange: handleAxes }
+    );
+
+    expect(handleAxes).toHaveBeenCalled();
+    expect(handleAxes).toHaveBeenLastCalledWith({ x: "A", y: "B" });
+
+    const xSelect = getByRole("combobox", { name: /x axis/i });
+    fireEvent.change(xSelect, { target: { value: "C" } });
+
+    expect(handleAxes).toHaveBeenLastCalledWith({ x: "C", y: "B" });
+  });
+
   it("records samples only when tracked values change", () => {
     const { container, getByRole, rerender } = renderPanel(allVars, {
       A: 0,

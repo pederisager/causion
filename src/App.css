@@ -9,6 +9,9 @@
 :root {
   --edge-connection-gap: 0px;
   --node-handle-arrow-length: 10px;
+  --edge-color-good: #16a34a;
+  --edge-color-bad: #dc2626;
+  --edge-color-maybe: #f59e0b;
 }
 
 .logo {

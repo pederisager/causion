@@ -103,6 +103,8 @@ export default function CausalEdge({
     targetY: adjustedTargetY,
   });
   const disabledByDo = Boolean(data?.disabledByDo);
+  const dsepColor = typeof data?.dsepColor === "string" ? data.dsepColor : "";
+  const hasDsepColor = !disabledByDo && dsepColor;
   const hot = disabledByDo ? false : Boolean(data?.hot);
   const pulseMs = Math.max(100, Number(data?.pulseMs ?? 800));
   const animationSeconds = Math.max(0.3, pulseMs / 800);
@@ -133,16 +135,20 @@ export default function CausalEdge({
     if (disabledByDo) {
       return themePreset === "causion" ? "var(--color-ink-border)" : "#cbd5e1";
     }
+    if (hasDsepColor) {
+      return dsepColor;
+    }
     return themePreset === "causion" ? "var(--color-ink-line)" : "#111";
   })();
   const chilledStroke = themePreset === "causion" ? 1.6 : 2;
   const hotStroke = themePreset === "causion" ? 2.4 : 3;
 
-  const baseClass = disabledByDo
-    ? undefined
-    : themePreset === "causion"
-    ? "causion-edge graphite-line"
-    : undefined;
+  const baseClass =
+    disabledByDo || hasDsepColor
+      ? undefined
+      : themePreset === "causion"
+      ? "causion-edge graphite-line"
+      : undefined;
   const hitAreaWidth = Number.isFinite(interactionWidth)
     ? Math.max(interactionWidth, chilledStroke + 6)
     : chilledStroke + 10;
@@ -203,7 +209,7 @@ export default function CausalEdge({
           },
           React.createElement("path", {
             d: "M0,0 L6,3 L0,6",
-            className: "causion-arrowhead",
+            className: hasDsepColor ? undefined : "causion-arrowhead",
             fill: "none",
             stroke: strokeColor,
             strokeWidth: 1.5,
@@ -224,7 +230,7 @@ export default function CausalEdge({
           },
           React.createElement("path", {
             d: "M0,0 L0,6 L9,3 z",
-            fill: disabledByDo ? "#cbd5e1" : "#111",
+            fill: disabledByDo ? "#cbd5e1" : strokeColor,
             opacity: disabledByDo ? DISABLED_MARKER_OPACITY : 1,
           })
         );

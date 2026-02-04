@@ -23,6 +23,19 @@ const NODE_H = NODE_HEIGHT;
 const RANK_SEP = RANK_SEPARATION;
 const NODE_SEP = NODE_SEPARATION;
 const BASE_SPACING = NODE_H + NODE_SEP;
+const EDGE_DSEP_COLORS = {
+  good: "var(--edge-color-good)",
+  bad: "var(--edge-color-bad)",
+  maybe: "var(--edge-color-maybe)",
+};
+
+function resolveEdgeDsepStatus(edgeDsepMap, edgeId) {
+  if (!edgeDsepMap || !edgeId) return null;
+  if (edgeDsepMap instanceof Map) {
+    return edgeDsepMap.get(edgeId) || null;
+  }
+  return edgeDsepMap[edgeId] || null;
+}
 
 function layoutLeftRight(eqs, allVars) {
   const nodeIds = new Set(allVars ?? []);
@@ -356,6 +369,7 @@ export function useNodeGraph({
   interventions,
   controlledVars,
   edgeHot,
+  edgeDsepMap,
   graphSignature,
   reactFlow,
   onEdgeCoefficientCommit,
@@ -606,8 +620,15 @@ export function useNodeGraph({
             targetRadius,
           };
           const id = `${parent}->${child}`;
-          const desiredMarker = { type: MarkerType.ArrowClosed, width: 30, height: 30, color: "#111" };
-          const desiredStyle = { strokeWidth: 2, stroke: "#111" };
+          const dsepStatus = resolveEdgeDsepStatus(edgeDsepMap, id);
+          const dsepColor = dsepStatus ? EDGE_DSEP_COLORS[dsepStatus] : null;
+          const desiredMarker = {
+            type: MarkerType.ArrowClosed,
+            width: 30,
+            height: 30,
+            color: dsepColor || "#111",
+          };
+          const desiredStyle = { strokeWidth: 2, stroke: dsepColor || "#111" };
           const desiredInteractionWidth = 24;
           const rawLabel = model ? deriveEffectLabel(model, parent, child) : "";
           const trimmedLabel = typeof rawLabel === "string" ? rawLabel.trim() : "";
@@ -657,6 +678,8 @@ export function useNodeGraph({
                 allowLabelEdit: canEditLabel,
                 showLabel,
                 onEdgeCoefficientCommit,
+                dsepStatus,
+                dsepColor,
                 ...edgeGeometry,
               };
               if (trimmedLabel) {
@@ -674,6 +697,8 @@ export function useNodeGraph({
                 allowLabelEdit: canEditLabel,
                 showLabel,
                 onEdgeCoefficientCommit,
+                dsepStatus,
+                dsepColor,
                 ...edgeGeometry,
               };
               if (trimmedLabel) {
@@ -686,6 +711,8 @@ export function useNodeGraph({
                 edge.data.stylePreset !== nextData.stylePreset ||
                 edge.data.effectLabel !== nextData.effectLabel ||
                 edge.data.disabledByDo !== nextData.disabledByDo ||
+                edge.data.dsepStatus !== nextData.dsepStatus ||
+                edge.data.dsepColor !== nextData.dsepColor ||
                 edge.data.allowLabelEdit !== nextData.allowLabelEdit ||
                 edge.data.showLabel !== nextData.showLabel ||
                 edge.data.sourceRadius !== nextData.sourceRadius ||
@@ -718,6 +745,8 @@ export function useNodeGraph({
                 allowLabelEdit: canEditLabel,
                 showLabel,
                 onEdgeCoefficientCommit,
+                dsepStatus,
+                dsepColor,
                 ...edgeGeometry,
                 ...(trimmedLabel ? { effectLabel: trimmedLabel } : {}),
               },
@@ -732,7 +761,20 @@ export function useNodeGraph({
       if (!mutated && next.length !== prev.length) mutated = true;
       return mutated ? next : prev;
     });
-  }, [eqs, features.anchorHandles, baseEdgeType, nodePositionSignature, setEdges, features.flowPulseMs, features.stylePreset, features.edgeEffectLabels, model, interventions, onEdgeCoefficientCommit]);
+  }, [
+    eqs,
+    features.anchorHandles,
+    baseEdgeType,
+    nodePositionSignature,
+    setEdges,
+    features.flowPulseMs,
+    features.stylePreset,
+    features.edgeEffectLabels,
+    model,
+    interventions,
+    onEdgeCoefficientCommit,
+    edgeDsepMap,
+  ]);
 
   useEffect(() => {
     setEdges((prev) =>

@@ -20,6 +20,9 @@ body.theme-causion {
   --color-brass: #c3aa74;
   --color-success: #4e8152;
   --color-error: #b04a3c;
+  --edge-color-good: var(--color-success);
+  --edge-color-bad: var(--color-error);
+  --edge-color-maybe: var(--color-brass);
 
   --paper-grain-opacity: 0.03; /* 0.02–0.04 recommended */
   --dag-canvas-bg: var(--color-bg);

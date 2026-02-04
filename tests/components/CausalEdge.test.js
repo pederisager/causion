@@ -92,6 +92,15 @@ describe("CausalEdge", () => {
     expect(onEdgeCoefficientCommit).toHaveBeenCalledWith("edge-1", 3.5);
   });
 
+  it("uses d-separation color when provided", () => {
+    const { container } = renderEdge({
+      data: { dsepColor: "var(--edge-color-bad)" },
+    });
+
+    const coloredPath = container.querySelector('path[stroke="var(--edge-color-bad)"]');
+    expect(coloredPath).toBeInTheDocument();
+  });
+
   it("shows the formula when the edge is selected", () => {
     renderEdge({
       selected: true,

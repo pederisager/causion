@@ -259,6 +259,7 @@ export default function DataVizPanel({
   showDockSelector = false,
   onDockPreferenceChange = () => {},
   onControlledVarsChange = () => {},
+  onAxesChange = () => {},
   onClose = () => {},
   containerRef,
   headingRef,
@@ -320,6 +321,10 @@ export default function DataVizPanel({
       return { x: nextX, y: nextY };
     });
   }, [options]);
+
+  useEffect(() => {
+    onAxesChange({ x, y });
+  }, [onAxesChange, x, y]);
 
   useEffect(() => {
     const lastAxes = lastAxesRef.current;
