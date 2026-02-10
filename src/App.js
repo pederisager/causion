@@ -40,6 +40,7 @@ import {
 import { topoSort } from "./graph/topology.js";
 import { buildGraphSignature } from "./utils/graphSignature.js";
 import { buildNoiseAugmentedGraph } from "./utils/noiseUtils.js";
+import { downloadDagImage } from "./utils/dagImageExport.js";
 import { computeEdgeDsepMap } from "./graph/dseparation.js";
 
 const CheatSheetModal = lazy(() => import("./components/panels/CheatSheetModal.jsx"));
@@ -92,6 +93,7 @@ export function createApp(overrides = {}) {
     const [nodeNameDraft, setNodeNameDraft] = useState("");
     const [nodeNameError, setNodeNameError] = useState("");
     const [dagNotice, setDagNotice] = useState("");
+    const [isDownloadingDagImage, setIsDownloadingDagImage] = useState(false);
     const [positionOverrides, setPositionOverrides] = useState({});
     const [layoutLock, setLayoutLock] = useState(false);
     const dagNoticeTimerRef = useRef(null);
@@ -1311,6 +1313,11 @@ export function createApp(overrides = {}) {
         ? "btn-outline text-[0.65rem] tracking-[0.15em] w-full flex items-center justify-center"
         : "px-2 py-1 rounded border shadow-sm text-xs w-full flex items-center justify-center"
     );
+    const canvasUtilityButtonClass = joinClasses(
+      isCausion
+        ? "btn-outline text-[0.65rem] tracking-[0.15em]"
+        : "px-2.5 py-1.5 rounded border shadow-sm text-xs bg-white"
+    );
 
     const dataPanelToggleLabel = dataPanelPrefs.isOpen ? "Hide data" : "Visualize data";
     const renderDataPanelToggleButton = (variant = "desktop") =>
@@ -1351,6 +1358,48 @@ export function createApp(overrides = {}) {
           "aria-pressed": features.edgeEffectLabels,
         },
         features.edgeEffectLabels ? "Hide edge formulas" : "Show edge formulas"
+      );
+
+    const handleDagImageDownload = useCallback(async () => {
+      if (isDownloadingDagImage) return;
+      if (!nodes.length) {
+        showDagNotice("Add at least one node before downloading the DAG.");
+        return;
+      }
+      setIsDownloadingDagImage(true);
+      try {
+        await downloadDagImage({
+          rootElement: canvasWrapperRef.current,
+          nodes,
+          filenamePrefix: "causion-dag",
+        });
+        showDagNotice("DAG image downloaded.");
+      } catch (error) {
+        console.error("DAG image export failed", error);
+        showDagNotice("Could not download DAG image.");
+      } finally {
+        setIsDownloadingDagImage(false);
+      }
+    }, [isDownloadingDagImage, nodes, showDagNotice]);
+
+    const renderDownloadDagButton = (variant = "desktop") =>
+      h(
+        "button",
+        {
+          type: "button",
+          className: joinClasses(
+            variant === "desktop"
+              ? desktopUtilityButtonClass
+              : variant === "canvas"
+              ? canvasUtilityButtonClass
+              : condensedUtilityButtonClass,
+            isDownloadingDagImage ? "opacity-70 cursor-wait" : ""
+          ),
+          onClick: () => handleDagImageDownload(),
+          disabled: isDownloadingDagImage,
+          "aria-busy": isDownloadingDagImage,
+        },
+        isDownloadingDagImage ? "Downloading image..." : "Download DAG image"
       );
 
     const advancedPanelToggleLabel = isAdvancedPanelVisible
@@ -1661,6 +1710,19 @@ export function createApp(overrides = {}) {
         },
         flowChildren
       ),
+      !isPhoneLayout
+        ? h(
+            "div",
+            {
+              className: "absolute left-16 bottom-3 z-20 pointer-events-none",
+            },
+            h(
+              "div",
+              { className: "pointer-events-auto" },
+              renderDownloadDagButton("canvas")
+            )
+          )
+        : null,
         nodePrompt
           ? h(NodeNamePrompt, {
               position: nodePrompt.position,
@@ -1806,6 +1868,7 @@ export function createApp(overrides = {}) {
               "div",
               { className: "flex items-center gap-2 flex-wrap justify-end" },
               renderDataPanelToggleButton("condensed"),
+              renderDownloadDagButton("condensed"),
               renderAdvancedPanelToggleButton("condensed"),
               forcePhoneLayout ? renderExitPhonePreviewButton("condensed") : null
             )

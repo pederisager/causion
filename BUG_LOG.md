@@ -27,6 +27,24 @@ How to use:
 - Regression check: Pending manual smoke pass (verify edges touch node borders on all sides).
 - Commit/PR: uncommitted
 
+## 2026-02-10 â€” fix(export): align DAG image download with rendered graph
+- Area: DAG image export
+- Symptom: Exported images used wide borders, default brown edges, missing control hatching/edge styling, and non-transparent backgrounds.
+- Root cause: Export path rebuilt a synthetic SVG with hard-coded palette and padding instead of capturing the rendered React Flow viewport.
+- Fix: Switched export to clone the live `.react-flow__viewport`, inline computed styles, crop to tight node bounds, and rasterize with transparent canvas background.
+- Tests: Updated `tests/components/App.test.js` mock expectations and added `tests/components/dagImageExport.test.js` bounds/filename coverage.
+- Regression check: Playwright smoke verified the download button still emits a PNG file end-to-end.
+- Commit/PR: uncommitted.
+
+## 2026-02-10 â€” fix(export-ui): improve PNG resolution and move download control
+- Area: DAG image export / canvas controls
+- Symptom: Exported PNG clarity was lower than desired, and the download action was less discoverable in the header controls row.
+- Root cause: Export scaling capped at low resolution and button placement was detached from DAG interaction controls.
+- Fix: Increased rasterization scale/canvas cap for higher-resolution PNG output and moved the download button into the DAG canvas overlay near the zoom/fit/interactivity controls (lower-left on desktop).
+- Tests: Updated `tests/components/App.test.js` to assert canvas-anchored button placement and kept download invocation coverage.
+- Regression check: Targeted Vitest, production build, and Playwright export smoke all pass.
+- Commit/PR: uncommitted.
+
 ## 2026-01-14 - separate handle arrow length from edge gap
 - Area: DAG panel / node handle styling
 - Symptom: Handle arrows drifted off-center and changing the gap did not move edge endpoints.

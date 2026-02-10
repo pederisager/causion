@@ -1,10 +1,24 @@
 import React from "react";
-import { describe, it, expect } from "vitest";
-import { screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { renderWithProviders, reactFlowBridgeStub } from "../setup/test-env.js";
 import { __TEST_ONLY__ } from "../../src/App.js";
 
+const downloadDagImageMock = vi.fn().mockResolvedValue({
+  filename: "causion-dag-test.png",
+  width: 600,
+  height: 420,
+});
+
+vi.mock("../../src/utils/dagImageExport.js", () => ({
+  downloadDagImage: (...args) => downloadDagImageMock(...args),
+}));
+
 describe("App", () => {
+  beforeEach(() => {
+    downloadDagImageMock.mockClear();
+  });
+
   it("renders without crashing (smoke)", () => {
     const { createApp } = __TEST_ONLY__;
     const { App } = createApp(reactFlowBridgeStub);
@@ -48,5 +62,27 @@ describe("App", () => {
     fireEvent.click(clampToggle);
     expect(clampToggle).toHaveAttribute("aria-pressed", "true");
     expect(randomButton).toBeEnabled();
+  });
+
+  it("downloads the DAG image from the utility bar", async () => {
+    const { createApp } = __TEST_ONLY__;
+    const { App } = createApp(reactFlowBridgeStub);
+
+    renderWithProviders(React.createElement(App));
+
+    const downloadButton = screen.getByRole("button", { name: /download dag image/i });
+    expect(downloadButton.closest(".absolute.left-16.bottom-3")).not.toBeNull();
+    fireEvent.click(downloadButton);
+
+    await waitFor(() => {
+      expect(downloadDagImageMock).toHaveBeenCalledTimes(1);
+    });
+    expect(downloadDagImageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rootElement: expect.any(HTMLElement),
+        nodes: expect.any(Array),
+        filenamePrefix: "causion-dag",
+      })
+    );
   });
 });
