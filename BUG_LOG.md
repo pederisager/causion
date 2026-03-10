@@ -18,6 +18,15 @@ How to use:
 - Commit/PR:
 
 ## Entries
+## 2026-03-10 - fix(assets): replace incorrect generated favicon PNG
+- Area: favicon / branding asset
+- Symptom: GitHub showed `public/causion_logo.png` as the wrong logo treatment instead of the intended white curved-arrow "C" on a black background.
+- Root cause: The first PNG was generated from the old SVG artwork instead of using the intended favicon mark.
+- Fix: Replaced `public/causion_logo.png` with a black-background PNG built from the standalone white curved-arrow mark while keeping the existing `index.html` PNG reference.
+- Tests: Not run (`npm ci` is blocked in this Windows environment by the Linux-only Rollup dependency pinned in `package.json`).
+- Regression check: Verified the replacement PNG is a valid `512x512` image and remains the favicon target in `index.html`.
+- Commit/PR: uncommitted
+
 ## 2026-01-14 — align edge endpoints to node borders
 - Area: DAG panel / edge layout
 - Symptom: Edge lines and arrowheads left a visible gap before touching node borders.
