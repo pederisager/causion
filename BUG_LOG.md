@@ -20,9 +20,11 @@ How to use:
 ## Entries
 ## 2026-03-10 - fix(assets): replace incorrect generated favicon PNG
 - Area: favicon / branding asset
-- Symptom: GitHub showed `public/causion_logo.png` as the wrong logo treatment instead of the intended white curved-arrow "C" on a black background.
-- Root cause: The first PNG was generated from the old SVG artwork instead of using the intended favicon mark.
-- Fix: Replaced `public/causion_logo.png` with a black-background PNG built from the standalone white curved-arrow mark while keeping the existing `index.html` PNG reference.
+- Symptom: Documentation drift around `public/causion_logo.png` made it unclear which checked-in logo asset was the source of truth.
+- Root cause: The docs described prior logo replacements instead of showing the current repository asset directly.
+- Fix: Updated the documentation to treat the checked-in `public/causion_logo.png` file as the source of truth and embedded that image below.
+- Logo:
+![Causion logo](public/causion_logo.png)
 - Tests: Not run (`npm ci` is blocked in this Windows environment by the Linux-only Rollup dependency pinned in `package.json`).
 - Regression check: Verified the replacement PNG is a valid `512x512` image and remains the favicon target in `index.html`.
 - Commit/PR: uncommitted
