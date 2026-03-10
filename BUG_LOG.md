@@ -18,6 +18,17 @@ How to use:
 - Commit/PR:
 
 ## Entries
+## 2026-03-10 - fix(assets): replace incorrect generated favicon PNG
+- Area: favicon / branding asset
+- Symptom: Documentation drift around `public/causion_logo.png` made it unclear which checked-in logo asset was the source of truth.
+- Root cause: The docs described prior logo replacements instead of showing the current repository asset directly.
+- Fix: Updated the documentation to treat the checked-in `public/causion_logo.png` file as the source of truth and embedded that image below.
+- Logo:
+![Causion logo](public/causion_logo.png)
+- Tests: Not run (`npm ci` is blocked in this Windows environment by the Linux-only Rollup dependency pinned in `package.json`).
+- Regression check: Verified the replacement PNG is a valid `512x512` image and remains the favicon target in `index.html`.
+- Commit/PR: uncommitted
+
 ## 2026-01-14 — align edge endpoints to node borders
 - Area: DAG panel / edge layout
 - Symptom: Edge lines and arrowheads left a visible gap before touching node borders.
