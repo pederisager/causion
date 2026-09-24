@@ -43,10 +43,11 @@ function clampToRange(value, range) {
   return Math.min(range.max, Math.max(range.min, num));
 }
 
-function computePropagationPlan(seeds, parentToChildren, lag) {
+function computePropagationPlans(seeds, parentToChildren, lag) {
   const seenDepth = new Map();
   const queue = [];
-  const plan = [];
+  const nodes = [];
+  const edges = [];
 
   for (const src of seeds) {
     seenDepth.set(src, 0);
@@ -59,14 +60,23 @@ function computePropagationPlan(seeds, parentToChildren, lag) {
     if (!children) continue;
     for (const child of children) {
       const nextDepth = depth + 1;
+      // A node can update on its earliest path while every incoming edge still
+      // carries a visible pulse. Directly changed seeds have no incoming pulse.
+      if (seenDepth.get(child) !== 0) {
+        edges.push({ parent: node, node: child, delay: nextDepth * lag });
+      }
       if (seenDepth.has(child) && seenDepth.get(child) <= nextDepth) continue;
       seenDepth.set(child, nextDepth);
       queue.push({ node: child, depth: nextDepth });
-      plan.push({ node: child, parent: node, delay: nextDepth * lag });
+      nodes.push({ node: child, parent: node, delay: nextDepth * lag });
     }
   }
 
-  return plan;
+  return { nodes, edges };
+}
+
+function computePropagationPlan(seeds, parentToChildren, lag) {
+  return computePropagationPlans(seeds, parentToChildren, lag).nodes;
 }
 
 function createNodeDisplayUpdater(lastValuesRef, nodeId, setDisplayValues) {
@@ -552,8 +562,8 @@ export function usePropagationEffects({ model, eqs, allVars, features, noiseConf
       setDisplayValues((prev) => ({ ...prev, [src]: values[src] }));
     });
 
-    const plan = computePropagationPlan(seeds, parentToChildren, lag);
-    for (const step of plan) {
+    const plans = computePropagationPlans(seeds, parentToChildren, lag);
+    for (const step of plans.nodes) {
       scheduleNodeDisplayUpdate(
         nodeUpdateTimersRef.current,
         pendingTimersRef.current,
@@ -562,12 +572,14 @@ export function usePropagationEffects({ model, eqs, allVars, features, noiseConf
         createNodeDisplayUpdater(lastValuesRef, step.node, setDisplayValues)
       );
 
-      const edgeId = `${step.parent}->${step.node}`;
+    }
+
+    for (const step of plans.edges) {
       if (!interventions[step.node]) {
         scheduleEdgePulse(
           edgeTimersRef.current,
           pendingTimersRef.current,
-          edgeId,
+          `${step.parent}->${step.node}`,
           step.delay,
           pulseMs,
           setEdgeHot
@@ -973,6 +985,7 @@ export const __TEST_ONLY__ = {
   clampToRange,
   tri,
   computePropagationPlan,
+  computePropagationPlans,
   buildActiveClampMap,
   collectPropagationSeeds,
   createNodeDisplayUpdater,

@@ -18,6 +18,15 @@ How to use:
 - Commit/PR:
 
 ## Entries
+## 2026-09-24 — Pulse every incoming edge in a converging DAG
+- Area: Causal flow animation
+- Symptom: Changing `Con` in the complex preset did not animate `Y → Col`.
+- Root cause: The shortest-path plan used for node updates also selected which edges could pulse, dropping alternate incoming paths.
+- Fix: Keep earliest-path node updates and schedule pulses for every reachable causal edge at its source depth.
+- Tests: `tests/hooks/propagationTiming.test.js` covers the complex preset shape and pulse duration; `tests/hooks/usePropagationEffects.edge-flow.test.js` checks hook wiring and node timing.
+- Regression check: In the complex preset, start auto slide for `Con` and verify both `X → Col` and `Y → Col` animate.
+- Commit/PR: uncommitted
+
 ## 2026-03-10 - fix(assets): replace incorrect generated favicon PNG
 - Area: favicon / branding asset
 - Symptom: Documentation drift around `public/causion_logo.png` made it unclear which checked-in logo asset was the source of truth.
