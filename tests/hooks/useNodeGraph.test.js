@@ -42,6 +42,33 @@ test("layoutLeftRight staggers siblings evenly", () => {
   assert.ok(gapCD >= expectedGap);
 });
 
+test("layoutLeftRight opens a three-node confounding triangle", () => {
+  const entries = [
+    ["Y", ["X", "C"]],
+    ["X", ["C"]],
+  ];
+  const positions = layoutLeftRight(makeDeps(entries));
+  const reordered = layoutLeftRight(makeDeps([...entries].reverse()));
+
+  assert.deepEqual(positions, reordered);
+  assert.ok(positions.C.x < positions.X.x && positions.X.x < positions.Y.x);
+  assert.equal(positions.C.y, positions.Y.y);
+  assert.equal(positions.X.y - positions.C.y, NODE_HEIGHT + NODE_SEPARATION);
+});
+
+test("layoutLeftRight keeps a plain three-node chain on its normal path", () => {
+  const positions = layoutLeftRight(makeDeps([
+    ["X", ["C"]],
+    ["Y", ["X"]],
+  ]));
+
+  assert.deepEqual(positions, {
+    C: { x: 50, y: 50 },
+    X: { x: 50 + NODE_WIDTH + RANK_SEPARATION, y: 50 },
+    Y: { x: 50 + 2 * (NODE_WIDTH + RANK_SEPARATION), y: 50 },
+  });
+});
+
 test("resolveNodePosition preserves manual positions when layout is locked", () => {
   const prevNode = { position: { x: 10, y: 20 } };
   const pos = resolveNodePosition({

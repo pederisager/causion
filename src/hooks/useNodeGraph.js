@@ -246,6 +246,21 @@ function layoutLeftRight(eqs, allVars) {
     };
   }
 
+  // Give the three-node transitive triangle a visible open center. The usual
+  // barycenter pass puts its one node per rank on an almost straight line.
+  if (nodeIds.size === 3 && layers.length === 3 && layers.every((layer) => layer.length === 1)) {
+    const [root, middle, sink] = layers.map((layer) => layer[0]);
+    if (
+      parentMap.get(middle)?.has(root) &&
+      parentMap.get(sink)?.has(root) &&
+      parentMap.get(sink)?.has(middle)
+    ) {
+      pos[root].y = 50;
+      pos[middle].y = 50 + BASE_SPACING;
+      pos[sink].y = 50;
+    }
+  }
+
   return pos;
 }
 
