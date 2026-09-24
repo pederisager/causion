@@ -18,15 +18,6 @@ How to use:
 - Commit/PR:
 
 ## Entries
-## 2026-09-24 — Pulse every incoming edge in a converging DAG
-- Area: Causal flow animation
-- Symptom: Changing `Con` in the complex preset did not animate `Y → Col`.
-- Root cause: The shortest-path plan used for node updates also selected which edges could pulse, dropping alternate incoming paths.
-- Fix: Keep earliest-path node updates and schedule pulses for every reachable causal edge at its source depth.
-- Tests: `tests/hooks/propagationTiming.test.js` covers the complex preset shape and pulse duration; `tests/hooks/usePropagationEffects.edge-flow.test.js` checks hook wiring and node timing.
-- Regression check: In the complex preset, start auto slide for `Con` and verify both `X → Col` and `Y → Col` animate.
-- Commit/PR: uncommitted
-
 ## 2026-03-10 - fix(assets): replace incorrect generated favicon PNG
 - Area: favicon / branding asset
 - Symptom: Documentation drift around `public/causion_logo.png` made it unclear which checked-in logo asset was the source of truth.
@@ -298,3 +289,12 @@ How to use:
 - Tests: Added `tests/integration/edge-edit-preserves-nodes.test.js` to verify nodes are preserved after edge edits. All existing tests pass (10 pass, 1 pre-existing failure unrelated to this fix).
 - Regression check: Manual testing should verify: (1) create node, immediately edit edge formula → node persists; (2) create edge, edit existing edge → both edges persist; (3) rename node, edit edge → both actions succeed.
 - Commit/PR: uncommitted
+
+## 2026-09-24 — Pulse every incoming edge in a converging DAG
+- Area: Causal flow animation
+- Symptom: Changing `Con` in the complex preset did not animate `Y → Col`.
+- Root cause: The shortest-path plan used for node updates also selected which edges could pulse, dropping alternate incoming paths.
+- Fix: Keep earliest-path node updates and schedule pulses for every reachable causal edge at its source depth.
+- Tests: `tests/hooks/propagationTiming.test.js` covers the complex preset shape and pulse duration; `tests/hooks/usePropagationEffects.edge-flow.test.js` checks hook wiring and node timing.
+- Regression check: In the complex preset, start auto slide for `Con` and verify both `X → Col` and `Y → Col` animate.
+- Commit/PR: [PR #50](https://github.com/pederisager/causion/pull/50)
