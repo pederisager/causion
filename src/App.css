@@ -362,3 +362,104 @@ body.theme-causion .node-label-input:focus {
   border: 1px solid var(--color-ink-border);
   color: var(--color-text);
 }
+
+/* Throwaway issue #39 examples; visible only in Vite prototype mode. */
+.scm-prototype {
+  border: 1px solid var(--color-ink-border, #d6cdb8);
+  border-radius: 9px;
+  padding: 10px 12px;
+  color: var(--color-text, #302b26);
+  font-size: 0.75rem;
+}
+
+.scm-prototype code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.7rem;
+}
+
+.scm-prototype--inline strong {
+  display: block;
+  margin-bottom: 7px;
+}
+
+.scm-prototype__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.scm-prototype__chips code,
+.scm-prototype--picker code {
+  padding: 4px 6px;
+  border: 1px solid var(--color-ink-border, #d6cdb8);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.scm-prototype--picker {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 9px;
+  align-items: center;
+}
+
+.scm-prototype--picker select {
+  min-width: 0;
+  padding: 4px;
+  border: 1px solid var(--color-ink-border, #d6cdb8);
+  border-radius: 5px;
+  background: white;
+}
+
+.scm-prototype--picker code,
+.scm-prototype--picker small {
+  grid-column: 1 / -1;
+}
+
+.scm-prototype--guide summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.scm-prototype--guide ul {
+  margin: 9px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scm-prototype--guide li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 0;
+  border-top: 1px solid var(--color-ink-border, #d6cdb8);
+}
+
+.scm-prototype-switcher {
+  position: fixed;
+  left: 50%;
+  bottom: 12px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 24px);
+  padding: 6px 10px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #302b26;
+  color: white;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  font-size: 0.7rem;
+}
+
+.scm-prototype-switcher button {
+  padding: 0 6px;
+  color: white;
+  font-size: 1.1rem;
+}
+
+@media (max-width: 480px) {
+  .scm-prototype-switcher span { display: none; }
+}

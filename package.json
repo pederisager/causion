@@ -11,7 +11,8 @@
     "test:watch": "vitest watch",
     "test:ui": "node tools/playwright/smoke-ui.mjs",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prototype:39": "vite --mode prototype"
   },
   "dependencies": {
     "@rollup/rollup-linux-x64-gnu": "^4.52.5",

@@ -15,6 +15,7 @@ import DataVizPanel from "./components/DataVizPanel.jsx";
 import DockLayout from "./components/layout/DockLayout.jsx";
 import NodeQuickMenu from "./components/NodeQuickMenu.jsx";
 import NodeNamePrompt from "./components/NodeNamePrompt.jsx";
+import ScmExamplesPrototype from "./components/panels/ScmExamplesPrototype.jsx";
 import {
   DEFAULT_FEATURE_FLAGS,
   DEFAULT_NOISE_SCALE,
@@ -61,6 +62,7 @@ const defaultFlowBridge = {
 };
 
 const SCM_CHEATSHEET_URL = "/scm-function-cheatsheet.html";
+const SHOW_SCM_EXAMPLES_PROTOTYPE = import.meta.env.MODE === "prototype";
 
 export function createApp(overrides = {}) {
   const bridge = { ...defaultFlowBridge, ...overrides };
@@ -80,7 +82,7 @@ export function createApp(overrides = {}) {
     const [features, setFeatures] = useState(defaultFeatures);
     const [noiseEnabled, setNoiseEnabled] = useState(false);
     const [noiseAmount, setNoiseAmount] = useState(DEFAULT_NOISE_SCALE);
-    const [isAdvancedPanelVisible, setIsAdvancedPanelVisible] = useState(false);
+    const [isAdvancedPanelVisible, setIsAdvancedPanelVisible] = useState(SHOW_SCM_EXAMPLES_PROTOTYPE);
     const [isCheatSheetOpen, setIsCheatSheetOpen] = useState(false);
     const [forcePhoneLayout, setForcePhoneLayout] = useState(false);
     const [advancedOpenMap, setAdvancedOpenMap] = useState({});
@@ -1106,6 +1108,7 @@ export function createApp(overrides = {}) {
         value: scmText,
         onChange: (e) => setScmText(e.target.value),
       }),
+      SHOW_SCM_EXAMPLES_PROTOTYPE ? h(ScmExamplesPrototype) : null,
       !isPhoneLayout
         ? h(
             "div",
