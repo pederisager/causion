@@ -25,7 +25,7 @@ How to use:
 - Fix: Place the middle node below the direct edge for exactly this three-node transitive shape.
 - Tests: `tests/hooks/useNodeGraph.test.js` checks the triangle, equation order, and an ordinary chain.
 - Regression check: Verify the grid triangle in the UI and confirm manual dragging still preserves positions.
-- Commit/PR: uncommitted
+- Commit/PR: [PR #48](https://github.com/pederisager/causion/pull/48)
 
 ## 2026-03-10 - fix(assets): replace incorrect generated favicon PNG
 - Area: favicon / branding asset
