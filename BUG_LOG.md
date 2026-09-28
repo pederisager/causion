@@ -18,6 +18,15 @@ How to use:
 - Commit/PR:
 
 ## Entries
+## 2026-09-24 — Open three-node confounding triangles
+- Area: Grid DAG layout
+- Symptom: `Y = X + C` and `X = C` initially placed the three nodes on a shallow line.
+- Root cause: Barycenter placement aligned one node in each rank without accounting for the direct `C → Y` edge.
+- Fix: Place the middle node below the direct edge for exactly this three-node transitive shape.
+- Tests: `tests/hooks/useNodeGraph.test.js` checks the triangle, equation order, and an ordinary chain.
+- Regression check: Verify the grid triangle in the UI and confirm manual dragging still preserves positions.
+- Commit/PR: [PR #48](https://github.com/pederisager/causion/pull/48)
+
 ## 2026-03-10 - fix(assets): replace incorrect generated favicon PNG
 - Area: favicon / branding asset
 - Symptom: Documentation drift around `public/causion_logo.png` made it unclear which checked-in logo asset was the source of truth.
