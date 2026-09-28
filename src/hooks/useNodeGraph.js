@@ -10,6 +10,7 @@ import { applyEdgeVisualState } from "../utils/edgeUtils.js";
 import { deriveEffectLabel } from "../utils/effectLabels.js";
 import { getLinearCoefficient } from "../utils/linearExpression.js";
 import { buildNoiseLabel, getNoiseTargetId } from "../utils/noiseUtils.js";
+import { placeLayers } from "../graph/layeredLayout.js";
 import {
   NODE_HEIGHT,
   NODE_SEPARATION,
@@ -22,7 +23,6 @@ const NODE_W = NODE_WIDTH;
 const NODE_H = NODE_HEIGHT;
 const RANK_SEP = RANK_SEPARATION;
 const NODE_SEP = NODE_SEPARATION;
-const BASE_SPACING = NODE_H + NODE_SEP;
 const EDGE_DSEP_COLORS = {
   good: "var(--edge-color-good)",
   bad: "var(--edge-color-bad)",
@@ -123,145 +123,12 @@ function layoutLeftRight(eqs, allVars) {
     barycenterSort(layer, next, (id) => childMap.get(id) ?? new Set());
   }
 
-  let maxRows = 0;
-  for (const layer of layers) {
-    maxRows = Math.max(maxRows, layer.length);
-  }
-
-  const xForRank = (r) => 50 + r * (NODE_W + RANK_SEP);
-  const pos = {};
-  const globalHeight = maxRows ? maxRows * BASE_SPACING - NODE_SEP : 0;
-  for (let i = 0; i < layers.length; i += 1) {
-    const layer = layers[i];
-    const totalH = layer.length ? layer.length * BASE_SPACING - NODE_SEP : 0;
-    const baseY = layer.length
-      ? Math.max(50, 50 + (globalHeight - totalH) / 2)
-      : 50;
-    layer.forEach((id, index) => {
-      pos[id] = { x: xForRank(i), y: baseY + index * BASE_SPACING };
-    });
-  }
-
-  const centersInitial = new Map();
-  for (const id of order) {
-    const base = pos[id]?.y ?? 50;
-    centersInitial.set(id, base + NODE_H / 2);
-  }
-
-  const rankOf = (id) => rank.get(id) ?? 0;
-  const average = (values) =>
-    values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : undefined;
-
-  let centers = centersInitial;
-  const iterations = 3;
-  for (let pass = 0; pass < iterations; pass += 1) {
-    const nextCenters = new Map(centers);
-
-    for (const id of order) {
-      const current = centers.get(id) ?? (50 + NODE_H / 2);
-      const parents = [...(parentMap.get(id) ?? [])].filter((p) => centers.has(p));
-      const children = [...(childMap.get(id) ?? [])].filter((c) => centers.has(c));
-      const parentCenters = parents.map((p) => centers.get(p)).filter(Number.isFinite);
-      const childCenters = children.map((c) => centers.get(c)).filter(Number.isFinite);
-
-      let desired = current;
-
-      const avgParents = average(parentCenters);
-      const avgChildren = average(childCenters);
-
-      if (Number.isFinite(avgParents) && Number.isFinite(avgChildren)) {
-        desired = (avgParents + avgChildren) / 2;
-      } else if (Number.isFinite(avgParents)) {
-        desired = avgParents;
-      } else if (Number.isFinite(avgChildren)) {
-        desired = avgChildren;
-      }
-
-      if (!parentCenters.length && childCenters.length) {
-        const gaps = children
-          .map((child) => (rankOf(child) - rankOf(id)))
-          .filter((gap) => gap > 1);
-        if (gaps.length) {
-          const avgGap = gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length;
-          desired -= BASE_SPACING * Math.min(Math.max(avgGap - 1, 0), 2) * 0.7;
-        }
-      }
-
-      if (!childCenters.length && parentCenters.length) {
-        const gaps = parents
-          .map((parent) => (rankOf(id) - rankOf(parent)))
-          .filter((gap) => gap > 1);
-        if (gaps.length) {
-          const avgGap = gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length;
-          desired += BASE_SPACING * Math.min(Math.max(avgGap - 1, 0), 2) * 0.7;
-        }
-      }
-
-      const blended = current * 0.4 + desired * 0.6;
-      nextCenters.set(id, blended);
-    }
-
-    for (let i = 0; i < layers.length; i += 1) {
-      const layer = layers[i];
-      if (layer.length <= 1) continue;
-      let prevCenter = nextCenters.get(layer[0]) ?? (50 + NODE_H / 2);
-      nextCenters.set(layer[0], prevCenter);
-      for (let index = 1; index < layer.length; index += 1) {
-        const id = layer[index];
-        const current = nextCenters.get(id) ?? prevCenter + BASE_SPACING;
-        const minAllowed = prevCenter + BASE_SPACING;
-        const adjusted = current < minAllowed ? minAllowed : current;
-        nextCenters.set(id, adjusted);
-        prevCenter = adjusted;
-      }
-
-      let nextCenter = nextCenters.get(layer[layer.length - 1]) ?? prevCenter;
-      for (let index = layer.length - 2; index >= 0; index -= 1) {
-        const id = layer[index];
-        const current = nextCenters.get(id) ?? nextCenter - BASE_SPACING;
-        const maxAllowed = nextCenter - BASE_SPACING;
-        const adjusted = current > maxAllowed ? maxAllowed : current;
-        nextCenters.set(id, adjusted);
-        nextCenter = adjusted;
-      }
-    }
-
-    centers = nextCenters;
-  }
-
-  let minCenter = Infinity;
-  for (const center of centers.values()) {
-    if (Number.isFinite(center)) {
-      minCenter = Math.min(minCenter, center);
-    }
-  }
-
-  const offset = Number.isFinite(minCenter) ? Math.max(0, 50 + NODE_H / 2 - minCenter) : 0;
-
-  for (const id of order) {
-    const adjustedCenter = (centers.get(id) ?? (50 + NODE_H / 2)) + offset;
-    pos[id] = {
-      ...pos[id],
-      y: Math.max(50, adjustedCenter - NODE_H / 2),
-    };
-  }
-
-  // Give the three-node transitive triangle a visible open center. The usual
-  // barycenter pass puts its one node per rank on an almost straight line.
-  if (nodeIds.size === 3 && layers.length === 3 && layers.every((layer) => layer.length === 1)) {
-    const [root, middle, sink] = layers.map((layer) => layer[0]);
-    if (
-      parentMap.get(middle)?.has(root) &&
-      parentMap.get(sink)?.has(root) &&
-      parentMap.get(sink)?.has(middle)
-    ) {
-      pos[root].y = 50;
-      pos[middle].y = 50 + BASE_SPACING;
-      pos[sink].y = 50;
-    }
-  }
-
-  return pos;
+  return placeLayers(layers, parentMap, rank, {
+    nodeWidth: NODE_W,
+    nodeHeight: NODE_H,
+    nodeSeparation: NODE_SEP,
+    rankSeparation: RANK_SEP,
+  });
 }
 
 function computeBarycenter(neighbors, neighborOrder, fallback) {
