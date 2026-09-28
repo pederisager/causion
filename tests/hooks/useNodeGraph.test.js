@@ -1,12 +1,75 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { NODE_HEIGHT, NODE_SEPARATION, NODE_WIDTH, RANK_SEPARATION } from "../../src/components/constants.js";
+import { PRESET_COMPLEX } from "../../src/data/presets.js";
+import { parseSCM } from "../../src/graph/parser.js";
+import { depsFromModel } from "../../src/graph/topology.js";
 import { __TEST_ONLY__ } from "../../src/hooks/useNodeGraph.js";
 
 const { layoutLeftRight, resolveNodePosition } = __TEST_ONLY__;
 
 function makeDeps(entries) {
   return new Map(entries.map(([child, parents]) => [child, new Set(parents)]));
+}
+
+function layoutScm(text) {
+  const { model, allVars } = parseSCM(text);
+  const eqs = depsFromModel(model);
+  return {
+    entries: [...eqs].map(([child, parents]) => [child, [...parents]]),
+    positions: layoutLeftRight(eqs, allVars),
+  };
+}
+
+function assertReadableLayout(entries, positions, maxRows) {
+  const ids = Object.keys(positions);
+  const rows = new Set(ids.map((id) => positions[id].y));
+  assert.ok(rows.size <= maxRows, `used ${rows.size} rows, expected at most ${maxRows}`);
+
+  for (const [child, parents] of entries) {
+    for (const parent of parents) {
+      assert.ok(positions[parent].x < positions[child].x, `${parent} must precede ${child}`);
+      const start = {
+        x: positions[parent].x + NODE_WIDTH / 2,
+        y: positions[parent].y + NODE_HEIGHT / 2,
+      };
+      const end = {
+        x: positions[child].x + NODE_WIDTH / 2,
+        y: positions[child].y + NODE_HEIGHT / 2,
+      };
+      for (const id of ids) {
+        if (id === parent || id === child) continue;
+        const node = {
+          x: positions[id].x + NODE_WIDTH / 2,
+          y: positions[id].y + NODE_HEIGHT / 2,
+        };
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        const fraction = Math.max(0, Math.min(1,
+          ((node.x - start.x) * dx + (node.y - start.y) * dy) / (dx * dx + dy * dy)
+        ));
+        const distance = Math.hypot(
+          node.x - (start.x + fraction * dx),
+          node.y - (start.y + fraction * dy)
+        );
+        assert.ok(
+          distance >= NODE_WIDTH / 2 + 8,
+          `${parent} → ${child} passes too close to ${id}: ${distance.toFixed(1)}px`
+        );
+      }
+    }
+  }
+
+  for (let i = 0; i < ids.length; i += 1) {
+    for (let j = i + 1; j < ids.length; j += 1) {
+      const a = positions[ids[i]];
+      const b = positions[ids[j]];
+      assert.ok(
+        Math.abs(a.x - b.x) >= NODE_WIDTH || Math.abs(a.y - b.y) >= NODE_HEIGHT,
+        `${ids[i]} overlaps ${ids[j]}`
+      );
+    }
+  }
 }
 
 test("layoutLeftRight positions parent ranks before children", () => {
@@ -67,6 +130,54 @@ test("layoutLeftRight keeps a plain three-node chain on its normal path", () => 
     X: { x: 50 + NODE_WIDTH + RANK_SEPARATION, y: 50 },
     Y: { x: 50 + 2 * (NODE_WIDTH + RANK_SEPARATION), y: 50 },
   });
+});
+
+test("layoutLeftRight aligns the complex preset without edges cutting through nodes", () => {
+  const { entries, positions } = layoutScm(PRESET_COMPLEX);
+  assertReadableLayout(entries, positions, 3);
+  assert.equal(positions.Con.y, positions.Y.y);
+  assert.equal(positions.X.y, positions.Col.y);
+  assert.ok(positions.Col.x + NODE_WIDTH - positions.Con.x <= 1050);
+  assert.deepEqual(positions, layoutLeftRight(makeDeps([...entries].reverse())));
+});
+
+test("layoutLeftRight keeps a deep shortcut DAG compact and unobstructed", () => {
+  const { entries, positions } = layoutScm("B=A\nC=B\nD=C+A\nQ=D+B\nR=Q+C");
+  assertReadableLayout(entries, positions, 3);
+  assert.ok(positions.R.x + NODE_WIDTH - positions.A.x <= 1200);
+  assert.deepEqual(positions, layoutLeftRight(makeDeps([...entries].reverse())));
+});
+
+test("layoutLeftRight keeps a branching mesh and its shortcut clear", () => {
+  const { entries, positions } = layoutScm(
+    "B=A\nC=A\nD=B+C\nQ=B+C\nF=D+Q\nG=D+Q\nH=F+G+A"
+  );
+  assertReadableLayout(entries, positions, 5);
+  assert.deepEqual(positions, layoutLeftRight(makeDeps([...entries].reverse())));
+});
+
+test("layoutLeftRight arranges multiple roots and a converging sink", () => {
+  const { entries, positions } = layoutScm(
+    "U=Ra+Rb\nV=Rb+Rc\nW=U+V\nZ=W+Ra+Rc"
+  );
+  assertReadableLayout(entries, positions, 5);
+  assert.deepEqual(positions, layoutLeftRight(makeDeps([...entries].reverse())));
+});
+
+test("layoutLeftRight handles a larger branching DAG with long shortcuts", () => {
+  const { entries, positions } = layoutScm(
+    "A=R\nB=R\nC=A\nD=B\nF=C+D\nG=A+D\nH=F+G\nJ=H+R\nK=J+C\nL=K+D"
+  );
+  assertReadableLayout(entries, positions, 6);
+  assert.deepEqual(positions, layoutLeftRight(makeDeps([...entries].reverse())));
+});
+
+test("layoutLeftRight supports a wide rank without dropping nodes", () => {
+  const entries = Array.from({ length: 12 }, (_, index) => [`N${index}`, ["Root"]]);
+  const positions = layoutLeftRight(makeDeps(entries));
+  assert.equal(Object.keys(positions).length, 13);
+  assert.equal(new Set(entries.map(([id]) => positions[id].y)).size, 12);
+  assert.deepEqual(positions, layoutLeftRight(makeDeps([...entries].reverse())));
 });
 
 test("resolveNodePosition preserves manual positions when layout is locked", () => {

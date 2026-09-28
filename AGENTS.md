@@ -23,7 +23,7 @@
 Interactive **DAG visual simulation app** (React + Vite) demonstrating causal flow. Last tagged stable snapshot: **causion_app_v1.0** (2025‑10‑12).
 
 ### Core invariants (must never regress)
-1. **Deterministic SCM parsing & layout** – The SCM editor → parser → topology pipeline must surface friendly errors, emit nodes/edges for every referenced identifier, and keep layouts stable (manual/freeform preserves manual coordinates across DAG edits; grid layout regenerates deterministically from `graphSignature` when SCM changes are applied, with a visible open center for a three-node transitive triangle).
+1. **Deterministic SCM parsing & layout** – The SCM editor → parser → topology pipeline must surface friendly errors and emit nodes/edges for every referenced identifier. Manual/freeform preserves coordinates across DAG edits. Grid layout regenerates deterministically from `graphSignature` when SCM changes are applied, aligns nodes on shared rows, keeps long edges clear of unrelated nodes when space allows, and opens the center of a three-node transitive triangle.
 2. **Manual apply + seeded propagation** – SCM draft edits stay isolated until the brass "Apply Changes" button commits them; DAG panel edits auto-commit immediately into the SCM (updating both draft and committed text) while downstream nodes still follow the seeded lag schedule (`features.causalLagMs`) so timing stays reproducible and no affected node is skipped.
 3. **Clamps, ranges & baselines** – Ephemeral drag clamps release on pointer up, reverting to baseline unless `do()` is enabled; explicit clamps persist values, and slider/number/range inputs stay synchronized while auto-correcting invalid min/max pairs.
 4. **Automation exclusivity** – Triangle‑wave auto slide and random play honor the current range, never run simultaneously for the same variable, and immediately relinquish control when a user clamps, intervenes, or commits a manual value.
@@ -90,9 +90,9 @@ If a change risks any invariant, stop, surface the concern, and mark the PR `nee
 7. **Follow-ups**: TODOs, tech debt, or next steps.
 
 Tick the checklist items in the PR description:
-- [ ] Requested the user to run `npm test` (or `npm run test:ci`) and recorded their results.
+- [ ] Ran `npm run test:ci` or requested a user run if tooling blocked it, and recorded the result.
 - [ ] Dev server smoke-tested for the affected path.
-- [ ] No change to any core invariants listed in Section 2.
+- [ ] Checked every core invariant in Section 2 and updated this document for any intended behavior change.
 - [ ] New or updated tests cover the change.
 - [ ] No large dependency introduced without justification.
 
@@ -109,8 +109,9 @@ Tick the checklist items in the PR description:
 
 ## 7. Tests & quality bars
 - Vitest + React Testing Library are the default test stack; reuse utilities under `tests/` or `src/__tests__/`.
-- `npm run test:ci` runs the Vitest suite plus the extra Node-based specs listed in `package.json`; ask the user to run it when full coverage is required since Vitest cannot run in this sandbox.
+- `npm run test:ci` runs the Vitest suite plus the extra Node-based specs listed in `package.json`; run it directly when the environment supports it, and ask the user only if tooling blocks the run.
 - Required regression test when modifying sliders: simulate drag + release and assert value/color reset (unless clamped).
+- When changing grid layout, test the Complex DAG preset plus deeper, branching, converging, and wide graphs. Check deterministic positions, node clearance, and whether long straight edges pass through unrelated nodes.
 - Keep snapshot tests minimal; prefer assertion-based behavior tests.
 - For asynchronous animations (e.g., marching-ants), consider deterministic timers or helper utils if flakes appear—submit those helpers in a focused PR first.
 
@@ -160,7 +161,7 @@ jobs:
       - run: npm ci || npm install
       - run: npm run test:ci
 ```
-Because Vitest cannot run inside the Codex sandbox, agents must request that the user runs `npm run test:ci` locally whenever a CI-equivalent verification is required.
+Run `npm run test:ci` directly when the environment supports it. If tooling blocks a CI-equivalent run, ask the user to run it locally and report the result.
 
 ---
 
