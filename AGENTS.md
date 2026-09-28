@@ -90,9 +90,9 @@ If a change risks any invariant, stop, surface the concern, and mark the PR `nee
 7. **Follow-ups**: TODOs, tech debt, or next steps.
 
 Tick the checklist items in the PR description:
-- [ ] Requested the user to run `npm test` (or `npm run test:ci`) and recorded their results.
+- [ ] Ran `npm run test:ci` or requested a user run if tooling blocked it, and recorded the result.
 - [ ] Dev server smoke-tested for the affected path.
-- [ ] No change to any core invariants listed in Section 2.
+- [ ] Checked every core invariant in Section 2 and updated this document for any intended behavior change.
 - [ ] New or updated tests cover the change.
 - [ ] No large dependency introduced without justification.
 

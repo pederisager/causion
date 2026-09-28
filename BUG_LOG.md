@@ -25,7 +25,7 @@ How to use:
 - Fix: Search a compact row grid for clear, low-crossing edges and shorten rank gaps in deeper graphs. Keep a fast aligned-grid fallback for very large graphs.
 - Tests: `tests/hooks/useNodeGraph.test.js` covers the preset, a deep shortcut chain, a branching mesh, multiple roots, a larger branching graph, and a wide rank.
 - Regression check: Playwright local-dev pass at 1440×900 inspected the preset and four larger graphs. All nodes stayed visible, the tested long edges cleared unrelated nodes, the noise toggle preserved base positions, and the browser logged no errors. Existing manual/freeform position tests passed.
-- Commit/PR: pending
+- Commit/PR: [PR #52](https://github.com/pederisager/causion/pull/52)
 
 ## 2026-09-24 — Open three-node confounding triangles
 - Area: Grid DAG layout
