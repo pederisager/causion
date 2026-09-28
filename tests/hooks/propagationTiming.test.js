@@ -7,7 +7,7 @@ import {
 } from "../../src/utils/timers.js";
 import { __TEST_ONLY__ as helpers } from "../../src/hooks/usePropagationEffects.js";
 
-const { computePropagationPlan, collectPropagationSeeds, createNodeDisplayUpdater } = helpers;
+const { computePropagationPlan, computePropagationPlans, collectPropagationSeeds, createNodeDisplayUpdater } = helpers;
 
 function makeGraph(entries) {
   const map = new Map();
@@ -228,6 +228,50 @@ test("propagation plan avoids cycles and keeps earliest path", async (t) => {
   t.mock.timers.tick(10);
   assert.deepEqual(fired, ["A", "X"]);
 
+  t.mock.timers.reset();
+});
+
+test("every reachable edge pulses when paths converge on one node", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+
+  const graph = makeGraph([
+    ["Con", ["X", "Y"]],
+    ["X", ["M", "Col"]],
+    ["M", ["Y"]],
+    ["Y", ["Col"]],
+  ]);
+  const plans = computePropagationPlans(["Con"], graph, 50);
+
+  assert.deepEqual(plans.nodes, [
+    { node: "X", parent: "Con", delay: 50 },
+    { node: "Y", parent: "Con", delay: 50 },
+    { node: "M", parent: "X", delay: 100 },
+    { node: "Col", parent: "X", delay: 100 },
+  ]);
+  assert.deepEqual(plans.edges, [
+    { node: "X", parent: "Con", delay: 50 },
+    { node: "Y", parent: "Con", delay: 50 },
+    { node: "M", parent: "X", delay: 100 },
+    { node: "Col", parent: "X", delay: 100 },
+    { node: "Col", parent: "Y", delay: 100 },
+    { node: "Y", parent: "M", delay: 150 },
+  ]);
+
+  const edgeTimers = new Map();
+  const pending = [];
+  let hot = {};
+  const setEdgeHot = (updater) => {
+    hot = typeof updater === "function" ? updater(hot) : updater;
+  };
+  for (const step of plans.edges) {
+    scheduleEdgePulse(edgeTimers, pending, `${step.parent}->${step.node}`, step.delay, 200, setEdgeHot);
+  }
+
+  t.mock.timers.tick(100);
+  assert.equal(hot["Y->Col"], true);
+  assert.equal(hot["X->Col"], true);
+  t.mock.timers.tick(200);
+  assert.equal(hot["Y->Col"], false);
   t.mock.timers.reset();
 });
 
